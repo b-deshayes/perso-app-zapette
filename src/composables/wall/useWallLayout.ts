@@ -1,9 +1,23 @@
-import { computed, onMounted, ref, watch, type Ref } from 'vue'
+import { computed, onMounted, readonly, ref, watch, type Ref } from 'vue'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
-import { computeFocusLayout, computeGridLayout, type Size, type TileRect } from '@/domain/layout'
+import {
+  computeFocusLayout,
+  computeGridLayout,
+  meetsPlayerMinimum,
+  type CardRect,
+  type Size,
+  type TileRect,
+} from '@/domain/layout'
 import { useStreamsStore } from '@/stores/streams'
 
-/** Rectangles des tuiles, recalculés à chaque redimensionnement du conteneur ou changement d'état. */
+/** Vrai quand au moins une tuile visible est trop petite pour l'autoplay Twitch (partagé avec la barre). */
+const undersized = ref(false)
+
+export function useWallWarnings() {
+  return { undersized: readonly(undersized) }
+}
+
+/** Rectangles des tuiles et cartes, recalculés à chaque redimensionnement du conteneur ou changement d'état. */
 export function useWallLayout(container: Ref<HTMLElement | null>) {
   const store = useStreamsStore()
   const size = ref<Size>({ width: 0, height: 0 })
@@ -27,23 +41,23 @@ export function useWallLayout(container: Ref<HTMLElement | null>) {
     if (width !== size.value.width || height !== size.value.height) size.value = { width, height }
   })
 
-  const rects = computed<TileRect[]>(() => {
+  const layout = computed<{ rects: TileRect[]; cards: CardRect[] }>(() => {
     if (store.focusedIndex >= 0) {
       return computeFocusLayout(size.value, store.count, store.focusedIndex, { strip: store.strip })
     }
-    return computeGridLayout(size.value, store.count)
+    return { rects: computeGridLayout(size.value, store.count), cards: [] }
   })
 
-  /** Vrai une frame après la première mesure : évite d'animer les tuiles depuis un rect nul. */
-  const ready = ref(false)
-  const stop = watch(
-    () => size.value.width,
-    (w) => {
-      if (w <= 0) return
-      requestAnimationFrame(() => requestAnimationFrame(() => (ready.value = true)))
-      stop()
+  const rects = computed(() => layout.value.rects)
+  const cards = computed(() => layout.value.cards)
+
+  watch(
+    rects,
+    (list) => {
+      undersized.value = list.some((r) => !r.hidden && r.w > 0 && !meetsPlayerMinimum(r))
     },
+    { immediate: true },
   )
 
-  return { rects, ready, size }
+  return { rects, cards, size }
 }

@@ -9,7 +9,7 @@ interface Props {
   danger?: boolean
   /** Raccourci clavier, affiché dans l'infobulle. */
   kbd?: string
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
 }
 
 withDefaults(defineProps<Props>(), { active: false, disabled: false, danger: false, size: 'md' })
@@ -20,7 +20,7 @@ const emit = defineEmits<{ (e: 'press'): void }>()
   <button
     type="button"
     class="ibtn"
-    :class="{ 'is-active': active, 'is-danger': danger, 'ibtn--sm': size === 'sm' }"
+    :class="{ 'is-active': active, 'is-danger': danger, 'ibtn--sm': size === 'sm', 'ibtn--xs': size === 'xs' }"
     :title="kbd ? `${label} (${kbd})` : label"
     :aria-label="label"
     :aria-pressed="active ? 'true' : undefined"

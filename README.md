@@ -1,8 +1,8 @@
 # perso-app-zapette
 
 **Zapette** — plusieurs streams Twitch sur une seule page, un chiffre pour zapper, un bouton pour caster sur la
-TV. Pensé pour suivre ses streamers pendant le **ZEVENT** sans perdre un pixel : aucune barre permanente, les
-tuiles occupent tout l'écran.
+TV. Pensé pour suivre ses streamers pendant le **ZEVENT** : une barre fine (masquable), et tout le reste pour
+les vidéos.
 
 > 100 % statique (Vue 3 + Vite), hébergé sur Vercel, aucun compte ni backend. L'état du mur vit dans l'URL et le
 > `localStorage` du navigateur.
@@ -12,14 +12,15 @@ tuiles occupent tout l'écran.
 | | |
 |---|---|
 | **Mur de streams** | Grille « multiviewer » : les tuiles 16/9 se répartissent pour maximiser la surface, quelle que soit la taille de la fenêtre. Jusqu'à 12 chaînes. |
-| **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou sur une tuile pour retirer. Flèches sur la tuile pour réordonner. |
-| **Focus** | Un stream en grand, les autres empilés dans une **colonne latérale** de miniatures (toujours en direct, muettes) : un clic sur une miniature zappe. Colonne à droite, à gauche, ou masquée (`S`) ; sur un écran large elle absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Colonne masquée : les autres lecteurs sont mis en pause pour économiser la bande passante. |
-| **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
-| **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut (épinglable avec `H`). |
+| **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou dans la barre d'une tuile pour retirer. Flèches pour réordonner. |
+| **Focus** | Un stream en grand ; dans une **colonne latérale**, autant de miniatures live que la hauteur le permet (à la taille minimale acceptée par Twitch), puis des cartes « en attente » pour les autres. Un clic sur une miniature ou une carte zappe. Colonne à droite, à gauche, ou masquée (`S`) ; sur un écran large elle absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. |
+| **Barre de contrôle** | Sous chaque vidéo : numéro, nom, statut live, son, focus, ordre, retrait. Jamais par-dessus la vidéo (voir les règles Twitch plus bas). |
+| **Son** | Un liseré ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
+| **Plein écran** | `F` : plein écran navigateur. `H` masque la barre du haut pour un mur plein cadre. |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
 | **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et le PC devient télécommande (voir ci-dessous). |
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
-| **Qualité adaptée** | Les miniatures demandent une qualité réduite (360p/480p) — inutile de décoder du 1080p dans 300 px, surtout pendant un cast. |
+| **Qualité adaptée** | Les miniatures demandent une qualité réduite (360p/480p) — inutile de décoder du 1080p dans une miniature, surtout pendant un cast. |
 
 Au premier lancement le mur contient `sylvainlyve`, `zerator` et `amixem`.
 
@@ -36,11 +37,11 @@ Au premier lancement le mur contient `sylvainlyve`, `zerator` et `amixem`.
 | `C` | Chat Twitch |
 | `A` ou `/` | Ajouter une chaîne |
 | `Suppr` | Retirer le stream en focus |
-| `H` | Épingler la barre du haut |
+| `H` | Masquer / afficher la barre du haut |
 | `?` | Aide |
 
 Les raccourcis sont inactifs quand le focus clavier est dans un lecteur Twitch (après un clic dans la vidéo) :
-cliquer à côté, ou sur une tuile, pour le reprendre.
+cliquer à côté, ou sur une barre de tuile, pour le reprendre.
 
 ## Caster sur la Chromecast
 
@@ -51,8 +52,8 @@ Deux façons, la première est intégrée à l'application :
    Le PC coupe ses lecteurs locaux et affiche des cartes de télécommande : focus, son, ajout, retrait, ordre —
    chaque changement est poussé à la TV en temps réel. Le bouton arrête la diffusion. Après un rechargement de la
    page PC, la télécommande se reconnecte toute seule à la diffusion en cours.
-2. **Menu Chrome `⋮` → Caster… → source « Onglet ».** Marche partout, sans code : passer en plein écran (`F`), la
-   barre se cache toute seule.
+2. **Menu Chrome `⋮` → Caster… → source « Onglet ».** Marche partout, sans code : passer en plein écran (`F`) et
+   masquer la barre (`H`) avant.
 
 Le mirroring est fait par le PC : il décode les streams et encode la vidéo envoyée à la TV. Plus il y a de
 chaînes, plus ça pèse — le mode focus (les autres en miniatures basse qualité, ou colonne masquée) est le plus
@@ -89,24 +90,26 @@ Site statique servi à la racine. Sur Vercel : preset **Vite**, commande `npm ru
 détection automatique suffit, chaque push sur `main` déploie. Pour servir sous un sous-chemin, définir
 `VITE_BASE_PATH` (ex. `/zapette/`) au build.
 
-## Pièges Twitch (appris en route)
+## Règles du lecteur Twitch (lues dans son code, elles dictent l'interface)
 
-- Le lecteur **refuse l'autoplay** (« minimum requirements for autoplay were not met: style visibility ») quand
-  l'`isVisible` d'un IntersectionObserver v2 est faux, c'est-à-dire dès qu'un élément de la page **chevauche
-  l'iframe** (même transparent, même en `pointer-events: none` ; seule l'opacité 0 est ignorée) ou qu'un
-  ancêtre porte une opacité < 1, un filtre, un `clip-path`, une transformation autre qu'une translation 2D.
-  Il évalue ça au démarrage et à chaque relance (changement de qualité, fin de pub). L'enforcement est
-  actif sur les domaines publics, pas sur `localhost`. Donc : rien ne recouvre un lecteur au repos — bandeau de
-  contrôle et zone de survol de la barre à opacité 0 tant qu'ils ne sont pas survolés, légende des miniatures
-  **sous** la vidéo, liseré ambre en `outline`, tuiles masquées rangées derrière le stream en focus, aucune
-  animation d'opacité, aucun `clip-path`.
-- Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures
-  restent en direct, en basse qualité. Si un lecteur est quand même trouvé en pause après un changement de
-  disposition, il est relancé une ou deux fois.
+Sur les domaines publics (pas sur `localhost`, d'où des tests locaux trompeurs), le lecteur embarqué observe
+son propre document avec un IntersectionObserver v2 (`trackVisibility`, délai 1 s) et applique trois règles,
+au démarrage **et en cours de lecture** — une violation met le lecteur en pause, et il ne reprend jamais seul :
+
+| Violation | Ce que ça veut dire | Réponse de Zapette |
+|---|---|---|
+| `style visibility` | un élément de la page **chevauche l'iframe** (même transparent, même `pointer-events: none` ; seule l'opacité 0 est ignorée), ou un ancêtre porte opacité < 1, filtre, `clip-path`, transformation autre qu'une translation 2D | contrôles dans une **barre sous la vidéo**, barre du haut **dans le flux** (jamais par-dessus), toasts sur la barre, liseré du son en `outline`, zone de clic des miniatures à opacité 0, aucune transition ni animation sur les tuiles |
+| `size` | vidéo plus petite que **400×300 px** | miniatures live à 534×300 en mode focus, cartes « en attente » pour les chaînes qui ne tiennent pas (leur lecteur est rangé derrière le stream en focus), compteur ambre quand la grille est trop serrée |
+| `viewport visibility` | vidéo en partie hors de la fenêtre | tout tient toujours dans la fenêtre |
+
+Autres règles vérifiées :
+
 - Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : son et qualité sont
-  appliqués au `PLAYING`.
-- Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur reste muet jusqu'au premier
-  clic / touche sur la page, sauf sur la TV (récepteur Presentation) où Chrome autorise l'autoplay sonore.
+  appliqués au `PLAYING`. Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur
+  reste muet jusqu'au premier clic / touche sur la page, sauf sur la TV (récepteur Presentation).
+- Un changement de qualité relance la lecture, donc repasse par ces contrôles : jamais sur une tuile rangée.
+- Comme Twitch ne reprend pas seul, chaque tuile relance son lecteur (`play()`) après un changement de
+  disposition et toutes les 4 s si elle le trouve en pause alors qu'elle est visible et assez grande.
 - Le bruit console (`amazon-adsystem` bloqué par un bloqueur de pub, `attribution-reporting`, `accelerometer`,
   `MaxListenersExceededWarning`, `Failed to load playlist` pour une chaîne hors ligne) vient du lecteur Twitch et
   n'a pas d'effet.
@@ -115,14 +118,14 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 
 ```
 src/
-├── domain/          # Logique pure, testée : layout (grille / focus + colonne), parsing de chaîne, état URL,
-│                    # validation d'un snapshot, choix de qualité, protocole de cast, modes de colonne
+├── domain/          # Logique pure, testée : layout (grille / focus, colonne, cartes, minimum Twitch), parsing
+│                    # de chaîne, état URL, validation d'un snapshot, choix de qualité, protocole de cast
 ├── services/        # Chargement de l'embed Twitch, accès à l'API Presentation, localStorage
 ├── stores/          # Pinia : streams (chaînes, son, focus, colonne, chat)
-├── composables/     # wall/ (layout, lecteur Twitch, persistance) · ui/ (barre auto-masquée, raccourcis,
-│                    # aide, toasts) · cast/ (contrôleur PC, récepteur TV)
-├── components/      # layout/ (barre, pastilles) · wall/ (mur, tuile, tuile télécommande, chat, états vides)
-│                    # · cast/ · ui/ (boutons, champ, toasts, aide)
+├── composables/     # wall/ (layout, lecteur Twitch, persistance) · ui/ (barre, raccourcis, aide, toasts)
+│                    # · cast/ (contrôleur PC, récepteur TV)
+├── components/      # layout/ (barre, pastilles) · wall/ (mur, tuile, carte, tuile télécommande, chat, états
+│                    # vides) · cast/ · ui/ (boutons, champ, toasts, aide)
 └── types/           # Modèles, typage Twitch embed et API Presentation
 ```
 

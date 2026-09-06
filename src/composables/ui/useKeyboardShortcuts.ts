@@ -1,5 +1,5 @@
 import { useEventListener } from '@vueuse/core'
-import { useAutoHideBar } from '@/composables/ui/useAutoHideBar'
+import { useBarVisibility } from '@/composables/ui/useBarVisibility'
 import { useHelpOverlay } from '@/composables/ui/useHelpOverlay'
 import { useStreamsStore } from '@/stores/streams'
 
@@ -20,7 +20,7 @@ function isEditable(target: EventTarget | null): target is HTMLElement {
 export function useKeyboardShortcuts(actions: ShortcutActions) {
   const store = useStreamsStore()
   const help = useHelpOverlay()
-  const bar = useAutoHideBar()
+  const bar = useBarVisibility()
 
   useEventListener(window, 'keydown', (event: KeyboardEvent) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return
@@ -65,7 +65,7 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
         break
       case 'h':
       case 'H':
-        bar.togglePin()
+        bar.toggle()
         break
       case 'a':
       case 'A':
