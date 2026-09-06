@@ -13,6 +13,7 @@
     "typecheck": "vue-tsc -b"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@vueuse/core": "^14.4.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^4.0.3",

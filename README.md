@@ -90,7 +90,9 @@ en production.
 ## Déploiement
 
 Site statique servi à la racine. Sur Vercel : preset **Vite**, commande `npm run build`, dossier `dist` — la
-détection automatique suffit, chaque push sur `main` déploie. Pour servir sous un sous-chemin, définir
+détection automatique suffit, chaque push sur `main` déploie. Vercel Web Analytics est branché
+(`inject()` de `@vercel/analytics` dans `main.ts` — le composant `@vercel/analytics/vue` importe `vue-router`, absent
+ici) : à activer dans le projet Vercel. Pour servir sous un sous-chemin, définir
 `VITE_BASE_PATH` (ex. `/zapette/`) au build.
 
 ## Spectateurs : d'où vient le chiffre
@@ -126,6 +128,13 @@ changer sans préavis ; en cas d'échec, les compteurs disparaissent au bout de 
   visibilité qu'une fois par seconde).
 - Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : le son est
   appliqué au `PLAYING`.
+- **Onglet caché (autre onglet, fenêtre réduite) : Chrome met en pause toute vidéo qui n'a jamais joué avec du
+  son** (`WebMediaPlayerImpl::ShouldPausePlaybackWhenHidden`), pas Twitch. Mais une vidéo qui a été audible une
+  fois continue en arrière-plan même remise en sourdine : `HasUnmutedAudio()` ne regarde que le drapeau
+  `was_always_muted_` de l'élément, jamais le volume courant. Après le premier geste sur la page, chaque lecteur
+  muet est donc marqué une fois — volume 1 %, son activé puis coupé, volume restauré, le temps de quatre
+  messages, inaudible — et tout le mur tourne en tâche de fond. Au retour sur l'onglet, ce qui aurait été mis en
+  pause est relancé.
 - Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur reste muet jusqu'au premier
   clic / touche sur la page, sauf sur la TV (récepteur Presentation) où Chrome autorise l'autoplay sonore.
 - Le bruit console (`amazon-adsystem` bloqué par un bloqueur de pub, `attribution-reporting`, `accelerometer`,

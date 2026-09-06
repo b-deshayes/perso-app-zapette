@@ -30,6 +30,13 @@ export interface UseTwitchPlayerOptions {
 
 const ACTIVATION_EVENTS = ['pointerdown', 'keydown'] as const
 /**
+ * Volume du passage « audible » : le lecteur Twitch arrondit au centième, 0,01 est donc le minimum
+ * non nul. À -40 dB pendant un seul message, rien ne s'entend.
+ */
+const AUDIBLE_MARK_VOLUME = 0.01
+/** Volume restauré si le lecteur ne renseigne pas le sien (état initial du proxy embed). */
+const FALLBACK_VOLUME = 0.5
+/**
  * Délais des relances quand un lecteur est trouvé en pause. Le lecteur Twitch réévalue sa
  * visibilité au plus une fois par seconde : la 2e et la 3e relance tombent après ce délai.
  */
@@ -142,6 +149,26 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     for (const type of ACTIVATION_EVENTS) window.addEventListener(type, activationHandler, true)
   }
 
+  /**
+   * Chrome met en pause, dès que l'onglet est caché, toute vidéo qui n'a jamais joué avec du son
+   * (WebMediaPlayerImpl::ShouldPausePlaybackWhenHidden) ; celles qui ont été audibles une fois
+   * continuent en arrière-plan, même remises en sourdine (HasUnmutedAudio ne regarde que
+   * HTMLMediaElement::was_always_muted_). Un lecteur muet est donc marqué une fois : volume 1 %, son
+   * activé puis coupé, volume restauré — le temps de quatre messages, inaudible. Exige un geste
+   * utilisateur (sinon l'activation du son mettrait la lecture en pause) et un lecteur en lecture.
+   */
+  let audibleMarked = false
+  function markAudibleOnce(p: Twitch.Player): void {
+    if (audibleMarked) return
+    audibleMarked = true
+    const current = p.getVolume()
+    const restore = Number.isFinite(current) && current > AUDIBLE_MARK_VOLUME ? current : FALLBACK_VOLUME
+    p.setVolume(AUDIBLE_MARK_VOLUME)
+    p.setMuted(false)
+    p.setMuted(true)
+    p.setVolume(restore)
+  }
+
   const applyMuted = () =>
     withPlayer((p) => {
       const muted = toValue(options.muted)
@@ -150,8 +177,25 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
         armActivation()
         return
       }
+      if (!muted) {
+        disarmActivation()
+        p.setMuted(false)
+        // Il joue avec du son : Chrome le sait déjà.
+        audibleMarked = true
+        return
+      }
+      p.setMuted(true)
+      if (options.eagerAudio || audibleMarked) {
+        disarmActivation()
+        return
+      }
+      // Sur le PC, un lecteur muet doit avoir été audible une fois pour survivre à l'arrière-plan.
+      if (!hasUserActivation()) {
+        armActivation()
+        return
+      }
       disarmActivation()
-      p.setMuted(muted)
+      if (status.value === 'live') markAudibleOnce(p)
     })
 
   /** Un lecteur trouvé en pause est relancé (miniatures toujours en direct). */
