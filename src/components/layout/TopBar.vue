@@ -142,7 +142,8 @@ defineExpose({ focusInput })
 /*
  * La barre ne recouvre JAMAIS un lecteur : un bandeau par-dessus une vidéo, même une fraction de
  * seconde, la fait mettre en pause par Twitch. Masquée, elle est entièrement hors écran ; seule une
- * zone de survol de 14 px à opacité 0 (ignorée par le test d'occlusion) dépasse en dessous. Visible,
+ * zone de survol de 6 px à opacité 0 (ignorée par le test d'occlusion) dépasse en dessous, avec un
+ * délai d'intention avant d'ouvrir. Visible,
  * le mur glisse de sa hauteur plus 2 px vers le bas, avec la même durée et la même courbe (voir
  * .stage.is-pushed) : à aucune image la barre ne mord sur la première rangée. Épinglée, elle prend
  * sa place dans le flux.
@@ -172,12 +173,13 @@ defineExpose({ focusInput })
   transition: none;
 }
 
+/* Fine (6 px) : dans un bloc de miniatures collé en haut, elle chevauche la barre des tuiles du haut. */
 .topzone__hot {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  height: 14px;
+  height: 6px;
   opacity: 0;
 }
 

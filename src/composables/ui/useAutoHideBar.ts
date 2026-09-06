@@ -3,6 +3,8 @@ import { useStorage } from '@vueuse/core'
 
 const HIDE_DELAY_MS = 700
 const REVEAL_MS = 2500
+/** Délai d'intention : traverser le bord haut d'un trait ne doit pas faire surgir la barre (et pousser le mur). */
+const REVEAL_INTENT_MS = 180
 
 function createAutoHideBar() {
   const pinned = useStorage('zapette.bar.pinned', false)
@@ -19,7 +21,11 @@ function createAutoHideBar() {
 
   function onEnter() {
     clear()
-    hovered.value = true
+    if (visible.value) {
+      hovered.value = true
+      return
+    }
+    timer = window.setTimeout(() => (hovered.value = true), REVEAL_INTENT_MS)
   }
 
   function onLeave() {

@@ -10,6 +10,7 @@ import {
   type Ref,
 } from 'vue'
 import { watchDebounced } from '@vueuse/core'
+import { useAutoHideBar } from '@/composables/ui/useAutoHideBar'
 import { embedParents, loadTwitchEmbed } from '@/services/twitch-embed.service'
 
 export type PlayerStatus = 'loading' | 'live' | 'offline' | 'paused' | 'error'
@@ -36,6 +37,17 @@ const ACTIVATION_EVENTS = ['pointerdown', 'keydown'] as const
 const AUDIBLE_MARK_VOLUME = 0.01
 /** Volume restauré si le lecteur ne renseigne pas le sien (état initial du proxy embed). */
 const FALLBACK_VOLUME = 0.5
+/**
+ * Reprise automatique d'une pause non demandée (Twitch met en pause sans jamais reprendre) :
+ * tentatives à 1,5 s, 4 s et 10 s. Le lecteur refuse un play() tant qu'une violation persiste,
+ * donc les tentatives sont sans risque.
+ */
+const AUTO_RESUME_DELAYS_MS = [1500, 4000, 10000]
+/** Un clic dans le lecteur moins de 5 s avant la pause : c'est l'utilisateur qui a mis en pause. */
+const USER_PAUSE_GRACE_MS = 5000
+/** Garde-fou : au plus 6 reprises automatiques par lecteur sur 5 min, ensuite « Reprendre » à la main. */
+const AUTO_RESUME_MAX = 6
+const AUTO_RESUME_WINDOW_MS = 5 * 60_000
 /**
  * Délais des relances quand un lecteur est trouvé en pause. Le lecteur Twitch réévalue sa
  * visibilité au plus une fois par seconde : la 2e et la 3e relance tombent après ce délai.
@@ -111,6 +123,10 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
   let disposed = false
   /** Dernière mise en pause signalée par le lecteur (0 : jamais). */
   let pausedAt = 0
+  /** Dernier moment où le focus est entré dans l'iframe : l'utilisateur agit dans le lecteur. */
+  let userTouchedAt = 0
+  const resumeStamps: number[] = []
+  const bar = useAutoHideBar()
   let cancelBoot: (() => void) | null = null
   let activationHandler: (() => void) | null = null
   const timers = new Set<number>()
@@ -209,6 +225,36 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     for (const delay of NUDGE_DELAYS_MS) later(delay, nudge)
   }
 
+  /** Reprise d'une pause que l'utilisateur n'a pas demandée, avec garde-fou anti-boucle. */
+  function scheduleAutoResume(): void {
+    const now = Date.now()
+    while (resumeStamps.length > 0 && now - resumeStamps[0]! > AUTO_RESUME_WINDOW_MS) resumeStamps.shift()
+    if (resumeStamps.length >= AUTO_RESUME_MAX) {
+      console.warn(`[zapette] ${options.channel} : pauses répétées, reprise automatique suspendue 5 min`)
+      return
+    }
+    resumeStamps.push(now)
+    for (const delay of AUTO_RESUME_DELAYS_MS) {
+      later(delay, () =>
+        withPlayer((p) => {
+          if (status.value === 'paused' && !toValue(options.hidden) && p.isPaused()) p.play()
+        }),
+      )
+    }
+  }
+
+  /** L'utilisateur a-t-il la main dans ce lecteur (focus dans son iframe) ? */
+  function playerHasFocus(): boolean {
+    const active = document.activeElement
+    return active !== null && host.value !== null && host.value.contains(active)
+  }
+
+  /** Le focus quitte la page : s'il entre dans l'iframe du lecteur, c'est un clic dedans (pause, réglages…). */
+  function onWindowBlur(): void {
+    if (playerHasFocus()) userTouchedAt = Date.now()
+  }
+  window.addEventListener('blur', onWindowBlur)
+
   async function createPlayer(): Promise<void> {
     try {
       await loadTwitchEmbed()
@@ -242,7 +288,18 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     p.addEventListener(Twitch.Player.ENDED, () => (status.value = 'offline'))
     p.addEventListener(Twitch.Player.PAUSE, () => {
       pausedAt = Date.now()
-      if (status.value === 'live') status.value = 'paused'
+      if (status.value !== 'live') return
+      status.value = 'paused'
+      const userPause = playerHasFocus() || pausedAt - userTouchedAt < USER_PAUSE_GRACE_MS
+      // Trace de diagnostic : à copier depuis la console si un stream se met en pause sans raison.
+      console.info(`[zapette] ${options.channel} mis en pause`, {
+        parUtilisateur: userPause,
+        largeur: Math.round(toValue(options.width)),
+        masque: toValue(options.hidden),
+        onglet: document.visibilityState,
+        barreVisible: bar.visible.value,
+      })
+      if (!userPause) scheduleAutoResume()
     })
     p.addEventListener(Twitch.Player.PLAY, () => {
       if (status.value === 'paused') status.value = 'live'
@@ -299,6 +356,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     disposed = true
     cancelBoot?.()
     disarmActivation()
+    window.removeEventListener('blur', onWindowBlur)
     for (const id of timers) window.clearTimeout(id)
     timers.clear()
     const p = player.value

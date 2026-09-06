@@ -85,10 +85,10 @@ const SHORTCUTS: Array<[string, string]> = [
 
             <h2 class="label-cond help__h">Un stream en pause ?</h2>
             <p class="help__p">
-              Twitch met en pause un stream dès que quelque chose le recouvre. Clique sur
-              <strong>Reprendre</strong> dans sa barre, ou sur le bouton lecture du lecteur. En arrière-plan
-              (autre onglet, fenêtre réduite), tout continue de tourner après ton premier clic sur la page ;
-              au retour, ce qui aurait été coupé est relancé tout seul.
+              Twitch met parfois un stream en pause sans le relancer. Zapette le relance tout seul (trois
+              tentatives), sauf si tu viens de cliquer dans ce lecteur : ta pause est respectée. Sinon,
+              <strong>Reprendre</strong> dans sa barre. En arrière-plan (autre onglet, fenêtre réduite), tout
+              continue de tourner après ton premier clic sur la page.
             </p>
 
             <h2 class="label-cond help__h">Partager</h2>

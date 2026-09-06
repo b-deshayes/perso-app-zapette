@@ -18,7 +18,7 @@ en pause).
 | **Spectateurs et pics** | Le nombre de spectateurs de chaque chaîne (Twitch, toutes les 30 s) et sa variation par rapport à la médiane des 15 dernières minutes. Un **pic** (au moins +25 % et +300 spectateurs) passe la barre de la tuile et la pastille en ambre, sans clignoter ; si la barre du haut est visible, un message le signale une fois (10 min de répit par chaîne) — jamais en faisant bouger le mur. L'historique (3 h) est gardé dans le navigateur : la détection repart avec sa référence après un rechargement. |
 | **Focus** | Un stream en grand, les autres en **miniatures sur le côté** (toujours en direct, muettes) : un clic sur une miniature zappe. Les miniatures font au moins 300 px de large (en dessous, Twitch ne les lit pas) : quand une colonne ne suffit pas en hauteur, le bloc passe à 2 ou 3 colonnes. Bloc à droite, à gauche, ou masqué (`S`) ; sur un écran large il absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bloc masqué : les autres lecteurs sont rangés derrière le stream principal ; Twitch les met en pause tant qu'ils y sont, ils repartent quand on zappe dessus. |
 | **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
-| **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut et **pousse le mur** vers le bas plutôt que de le recouvrir (épinglable avec `H`). Les messages (chaîne inconnue, cast…) s'affichent dans cette barre, jamais sur le mur. |
+| **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut (6 px, après 0,2 s d'intention) et **pousse le mur** vers le bas plutôt que de le recouvrir (épinglable avec `H`). Les messages (chaîne inconnue, cast…) s'affichent dans cette barre, jamais sur le mur. |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
 | **Chromecast** | Bouton **Cast** : la TV montre la grille telle quelle, ou, en mode focus, uniquement le stream en focus plein écran. Tout reste affiché sur le PC, qui pilote (voir ci-dessous). |
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
@@ -124,10 +124,14 @@ changer sans préavis ; en cas d'échec, les compteurs disparaissent au bout de 
   en pause pendant qu'il était ouvert sont relancés ; même chose au retour sur l'onglet. L'enforcement vaut pour tout domaine parent que Twitch
   n'a pas marqué « safe » (`localhost` compris) ; un onglet non rendu compte comme invisible, d'où des tests
   locaux trompeurs dans un aperçu masqué.
-- Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures
-  restent en direct. Si un lecteur est quand même trouvé en pause après un changement de
-  disposition ou après la fermeture de l'aide, il est relancé (0,4 s, 1,5 s, 3,2 s : le lecteur ne réévalue sa
-  visibilité qu'une fois par seconde).
+- Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est refusée tant qu'une violation
+  persiste. Les miniatures restent en direct. Un lecteur trouvé en pause après un changement de disposition ou
+  la fermeture de l'aide est relancé (0,4 s, 1,5 s, 3,2 s : le lecteur ne réévalue sa visibilité qu'une fois par
+  seconde). Et **toute pause que l'utilisateur n'a pas demandée est relancée automatiquement** (1,5 s, 4 s,
+  10 s ; au plus 6 fois par 5 min, puis « Reprendre » à la main) : une pause est jugée voulue si le focus est
+  dans l'iframe du lecteur ou y est entré moins de 5 s avant. Chaque pause est tracée en console
+  (`[zapette] <chaîne> mis en pause` avec largeur, onglet, barre) — à copier avec l'avertissement Twitch de
+  l'iframe si un stream se met en pause sans raison visible.
 - Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : le son est
   appliqué au `PLAYING`.
 - **Onglet caché (autre onglet, fenêtre réduite) : Chrome met en pause toute vidéo qui n'a jamais joué avec du
