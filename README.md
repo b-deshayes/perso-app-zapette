@@ -19,7 +19,7 @@ tuiles occupent tout l'écran.
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
 | **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et reste affiché sur le PC, qui pilote (voir ci-dessous). |
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
-| **Qualité adaptée** | Les miniatures demandent une qualité réduite (360p/480p) — inutile de décoder du 1080p dans 300 px, surtout pendant un cast. |
+| **Démarrage échelonné** | Les lecteurs démarrent l'un après l'autre (un toutes les 0,7 s) et restent en qualité auto : huit lecteurs lancés d'un coup, ou une qualité forcée, saturent la connexion et figent l'image. |
 
 Au premier lancement le mur contient `sylvainlyve`, `zerator` et `amixem`.
 
@@ -55,7 +55,7 @@ Deux façons, la première est intégrée à l'application :
    barre se cache toute seule.
 
 Le mirroring est fait par le PC : il décode les streams et encode la vidéo envoyée à la TV. Plus il y a de
-chaînes, plus ça pèse — le mode focus (les autres en miniatures basse qualité, ou colonne masquée) est le plus
+chaînes, plus ça pèse — le mode focus (les autres en miniatures, ou colonne masquée) est le plus
 confortable pour un cast.
 
 ## Stack
@@ -101,10 +101,10 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
   **sous** la vidéo, liseré ambre en `outline`, tuiles masquées rangées derrière le stream en focus, aucune
   animation d'opacité, aucun `clip-path`.
 - Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures
-  restent en direct, en basse qualité. Si un lecteur est quand même trouvé en pause après un changement de
+  restent en direct. Si un lecteur est quand même trouvé en pause après un changement de
   disposition, il est relancé une ou deux fois.
-- Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : son et qualité sont
-  appliqués au `PLAYING`.
+- Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : le son est
+  appliqué au `PLAYING`.
 - Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur reste muet jusqu'au premier
   clic / touche sur la page, sauf sur la TV (récepteur Presentation) où Chrome autorise l'autoplay sonore.
 - Le bruit console (`amazon-adsystem` bloqué par un bloqueur de pub, `attribution-reporting`, `accelerometer`,
@@ -116,7 +116,7 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 ```
 src/
 ├── domain/          # Logique pure, testée : layout (grille / focus + colonne), parsing de chaîne, état URL,
-│                    # validation d'un snapshot, choix de qualité, protocole de cast, modes de colonne
+│                    # validation d'un snapshot, protocole de cast, modes de colonne
 ├── services/        # Chargement de l'embed Twitch, accès à l'API Presentation, localStorage
 ├── stores/          # Pinia : streams (chaînes, son, focus, colonne, chat)
 ├── composables/     # wall/ (layout, lecteur Twitch, persistance) · ui/ (barre auto-masquée, raccourcis,
