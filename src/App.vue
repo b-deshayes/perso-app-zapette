@@ -64,7 +64,8 @@ watchEffect(() => {
 <style scoped>
 /*
  * Le mur glisse (translation 2D, tolérée par le lecteur Twitch) quand la barre se montre : un
- * bandeau qui le recouvrirait mettrait en pause la première rangée de streams.
+ * bandeau qui le recouvrirait, même une image, mettrait en pause la première rangée de streams.
+ * Même durée et même courbe que la barre, et 2 px de marge : les deux bords ne se croisent jamais.
  */
 .stage {
   position: relative;
@@ -75,7 +76,7 @@ watchEffect(() => {
 }
 
 .stage.is-pushed {
-  transform: translateY(var(--bar-h));
+  transform: translateY(calc(var(--bar-h) + 2px));
 }
 
 .app--receiver {

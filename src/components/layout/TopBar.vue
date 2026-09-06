@@ -133,16 +133,19 @@ defineExpose({ focusInput })
       </div>
     </div>
     <ToastHost />
+    <!-- Zone de survol sous la barre masquée : opacité 0, donc ignorée par le test d'occlusion de Twitch -->
+    <div class="topzone__hot" aria-hidden="true" />
   </header>
 </template>
 
 <style scoped>
 /*
- * La barre ne recouvre JAMAIS un lecteur : un bandeau par-dessus une vidéo, même quelques
- * secondes, la fait mettre en pause par Twitch. Masquée, elle reste survolable sur 14 px à
- * opacité 0 (seule l'opacité 0 est ignorée par le test d'occlusion). Visible, elle perd sa zone de
- * survol et le mur glisse d'autant vers le bas (voir .stage.is-pushed). Épinglée, elle prend sa
- * place dans le flux.
+ * La barre ne recouvre JAMAIS un lecteur : un bandeau par-dessus une vidéo, même une fraction de
+ * seconde, la fait mettre en pause par Twitch. Masquée, elle est entièrement hors écran ; seule une
+ * zone de survol de 14 px à opacité 0 (ignorée par le test d'occlusion) dépasse en dessous. Visible,
+ * le mur glisse de sa hauteur plus 2 px vers le bas, avec la même durée et la même courbe (voir
+ * .stage.is-pushed) : à aucune image la barre ne mord sur la première rangée. Épinglée, elle prend
+ * sa place dans le flux.
  */
 .topzone {
   position: fixed;
@@ -150,26 +153,36 @@ defineExpose({ focusInput })
   left: 0;
   right: 0;
   z-index: 40;
-  padding-bottom: 14px;
   opacity: 0;
-  transform: translateY(calc(-100% + 14px));
+  transform: translateY(-100%);
   transition:
     transform 0.28s var(--ease-panel),
     opacity 0.2s;
 }
 
 .topzone.is-visible {
-  padding-bottom: 0;
   opacity: 1;
   transform: translateY(0);
 }
 
 .topzone.is-pinned {
   position: relative;
-  padding-bottom: 0;
   opacity: 1;
   transform: none;
   transition: none;
+}
+
+.topzone__hot {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 14px;
+  opacity: 0;
+}
+
+.topzone.is-pinned .topzone__hot {
+  display: none;
 }
 
 .bar {

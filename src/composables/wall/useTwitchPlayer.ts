@@ -63,6 +63,18 @@ export function nudgePausedSince(since: number): void {
   nudgeRequest.value = { since, serial: nudgeRequest.value.serial + 1 }
 }
 
+/*
+ * Onglet quitté puis retrouvé : Twitch peut avoir mis les streams en pause (onglet caché, fenêtre
+ * recouverte). Au retour, seuls ceux mis en pause pendant l'absence sont relancés.
+ */
+let hiddenAt = 0
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) hiddenAt = Date.now()
+    else if (hiddenAt > 0) nudgePausedSince(hiddenAt)
+  })
+}
+
 /** Le navigateur a-t-il déjà vu un geste utilisateur sur cette page ? */
 function hasUserActivation(): boolean {
   const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation

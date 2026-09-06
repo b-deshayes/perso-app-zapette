@@ -14,8 +14,8 @@ en pause).
 |---|---|
 | **Mur de streams** | Grille « multiviewer » : les tuiles 16/9 se répartissent pour maximiser la surface, quelle que soit la taille de la fenêtre. Jusqu'à 12 chaînes. |
 | **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou dans la barre de la tuile pour retirer ; flèches dans la barre pour réordonner. |
-| **Barre de tuile** | Sous chaque vidéo, 24 px : numéro, nom, état (live, hors ligne, pause). Au survol : son, focus, ordre, retrait. Un stream que Twitch a mis en pause affiche **Reprendre**. |
-| **Focus** | Un stream en grand, les autres en **miniatures sur le côté** (toujours en direct, muettes) : un clic sur une miniature zappe. Les miniatures font au moins 300 px de large (en dessous, Twitch ne les lit pas) : quand une colonne ne suffit pas en hauteur, le bloc passe à 2 ou 3 colonnes. Bloc à droite, à gauche, ou masqué (`S`) ; sur un écran large il absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bloc masqué : les autres lecteurs continuent derrière, prêts à zapper. |
+| **Barre de tuile** | Au-dessus de chaque vidéo, 24 px : numéro, nom, état (live, hors ligne, pause). Au survol : son, focus, ordre, retrait. Un stream que Twitch a mis en pause affiche **Reprendre**. |
+| **Focus** | Un stream en grand, les autres en **miniatures sur le côté** (toujours en direct, muettes) : un clic sur une miniature zappe. Les miniatures font au moins 300 px de large (en dessous, Twitch ne les lit pas) : quand une colonne ne suffit pas en hauteur, le bloc passe à 2 ou 3 colonnes. Bloc à droite, à gauche, ou masqué (`S`) ; sur un écran large il absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bloc masqué : les autres lecteurs sont rangés derrière le stream principal ; Twitch les met en pause tant qu'ils y sont, ils repartent quand on zappe dessus. |
 | **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
 | **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut et **pousse le mur** vers le bas plutôt que de le recouvrir (épinglable avec `H`). Les messages (chaîne inconnue, cast…) s'affichent dans cette barre, jamais sur le mur. |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
@@ -103,10 +103,12 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
   la page : la commande `play` de l'API arrive sans paramètre). Autres seuils lus dans les settings du lecteur :
   taille minimale **300 × 150 px**, au moins 50 % de l'iframe dans le viewport. Donc : la barre de contrôle
   est **sous** la vidéo (jamais de bandeau au survol), la barre du haut pousse le mur au lieu de le
-  recouvrir, les toasts vivent dans cette barre, le liseré ambre est un `outline`, la zone de clic des
-  miniatures est à opacité 0, les tuiles masquées sont rangées derrière le stream en focus, aucune animation
-  d'opacité ni `clip-path` sur les tuiles. Le panneau d'aide recouvre tout : à sa fermeture, les lecteurs mis
-  en pause pendant qu'il était ouvert sont relancés. L'enforcement vaut pour tout domaine parent que Twitch
+  recouvrir (bord contre bord, même durée, même courbe, 2 px de marge), les toasts vivent dans cette barre,
+  le liseré ambre est un `outline`, une miniature se clique via son conteneur (l'iframe est en
+  `pointer-events: none`, rien n'est posé dessus), les tuiles masquées sont rangées derrière le stream en focus,
+  et **aucune transition sur les tuiles** : pendant un glissement elles se chevaucheraient quelques images, et
+  l'observateur du lecteur échantillonne immédiatement le premier changement après une période calme. Le panneau d'aide recouvre tout : à sa fermeture, les lecteurs mis
+  en pause pendant qu'il était ouvert sont relancés ; même chose au retour sur l'onglet. L'enforcement vaut pour tout domaine parent que Twitch
   n'a pas marqué « safe » (`localhost` compris) ; un onglet non rendu compte comme invisible, d'où des tests
   locaux trompeurs dans un aperçu masqué.
 - Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures

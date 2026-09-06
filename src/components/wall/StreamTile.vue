@@ -32,6 +32,8 @@ const style = computed(() => ({
   height: `${rect.value.h}px`,
   '--tile-bar': `${TILE_BAR}px`,
 }))
+/** Miniature cliquable : l'iframe ne reçoit plus la souris, le clic tombe sur le conteneur (sous elle). */
+const zappable = computed(() => props.interactive && props.thumbnail)
 
 /** Pendant une diffusion vers la TV, le son joue là-bas : les lecteurs locaux restent affichés mais muets. */
 const castState = useCastState()
@@ -57,6 +59,10 @@ const focusLabel = computed(() => {
   if (props.focused) return 'Revenir à la grille'
   return props.thumbnail ? 'Zapper sur ce stream' : 'Focus : plein cadre, les autres en sourdine'
 })
+
+function onPlayerClick() {
+  if (zappable.value) store.focus(props.channel.name)
+}
 </script>
 
 <template>
@@ -71,18 +77,7 @@ const focusLabel = computed(() => {
     :style="style"
     :aria-label="`Stream ${channel.name}`"
   >
-    <div ref="host" class="tile__player" />
-
-    <!-- Miniature : zone de clic invisible sur la vidéo (opacité 0, donc ignorée par le test d'occlusion de Twitch) -->
-    <button
-      v-if="interactive && thumbnail"
-      type="button"
-      class="tile__hit"
-      :title="`Zapper sur ${channel.name} (${index + 1})`"
-      @click="store.focus(channel.name)"
-    />
-
-    <!-- Barre sous la vidéo, jamais dessus : nom, état, et au survol les boutons -->
+    <!-- Barre AU-DESSUS de la vidéo, jamais dessus : nom, état, et au survol les boutons -->
     <div class="tile__bar">
       <span class="tile__idx">{{ index + 1 }}</span>
       <span class="tile__name">{{ channel.name }}</span>
@@ -133,6 +128,15 @@ const focusLabel = computed(() => {
       </div>
     </div>
 
+    <!-- Rien n'est jamais posé sur le lecteur : une miniature se zappe en cliquant ici, sous l'iframe -->
+    <div
+      ref="host"
+      class="tile__player"
+      :class="{ 'tile__player--zap': zappable }"
+      :title="zappable ? `Zapper sur ${channel.name} (${index + 1})` : undefined"
+      @click="onPlayerClick"
+    />
+
     <button v-if="interactive && blocked && !channel.muted" type="button" class="tile__unblock" @click="unblock">
       <Volume2 class="tile__unblock-icon" aria-hidden="true" />
       Activer le son
@@ -142,12 +146,12 @@ const focusLabel = computed(() => {
 
 <style scoped>
 /*
- * Règle d'or : rien ne recouvre le lecteur, jamais, et aucun effet visuel sur ses ancêtres. Le
- * lecteur Twitch surveille son iframe (IntersectionObserver v2) : un élément qui la chevauche —
- * même un bandeau semi-transparent révélé au survol — met le stream en pause au bout d'une
- * seconde, sans reprise. Seule l'opacité 0 est ignorée. D'où : tout ce qui est permanent ou
- * survolable vit dans la barre SOUS la vidéo, le liseré son est un outline (hors test d'occlusion),
- * et la zone de clic des miniatures reste à opacité 0.
+ * Règle d'or : rien ne recouvre le lecteur, jamais, même une image, et aucun effet visuel sur ses
+ * ancêtres. Le lecteur Twitch surveille son iframe (IntersectionObserver v2) : un élément qui la
+ * chevauche — même un bandeau semi-transparent, même pendant une animation — met le stream en
+ * pause, sans reprise. D'où : tout ce qui est permanent ou survolable vit dans la barre AU-DESSUS
+ * de la vidéo, le liseré son est un outline (hors test d'occlusion), les miniatures se cliquent via
+ * le conteneur sous l'iframe (pointer-events: none dessus), et aucune transition sur les tuiles.
  */
 .tile {
   position: absolute;
@@ -181,20 +185,19 @@ const focusLabel = computed(() => {
   border: 0;
 }
 
+/* Miniature : la souris ne va plus au lecteur (pas de contrôles Twitch, pas de pause par clic) */
+.tile__player--zap {
+  cursor: pointer;
+}
+
+.tile__player--zap :deep(iframe) {
+  pointer-events: none;
+}
+
 /* Tally : liseré ambre sur ce qu'on entend — un outline ne participe pas au test d'occlusion. */
 .tile--audible {
   outline: 2px solid var(--color-tally-500);
   outline-offset: -2px;
-}
-
-/* ---------- Miniature : zone de clic ---------- */
-.tile__hit {
-  position: absolute;
-  inset: 0 0 var(--tile-bar) 0;
-  border: 0;
-  background: transparent;
-  opacity: 0;
-  cursor: pointer;
 }
 
 .tile--thumb:hover {
@@ -202,7 +205,7 @@ const focusLabel = computed(() => {
   outline-offset: -2px;
 }
 
-/* ---------- Barre sous la vidéo ---------- */
+/* ---------- Barre au-dessus de la vidéo ---------- */
 .tile__bar {
   display: flex;
   align-items: center;
@@ -317,11 +320,11 @@ const focusLabel = computed(() => {
   opacity: 1;
 }
 
-/* ---------- Autoplay bloqué : un clic pour le son ---------- */
+/* ---------- Autoplay bloqué : un clic pour le son (le lecteur ne joue pas, rien à occulter) ---------- */
 .tile__unblock {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--tile-bar) + 16%);
+  bottom: 16%;
   translate: -50% 0;
   display: inline-flex;
   align-items: center;

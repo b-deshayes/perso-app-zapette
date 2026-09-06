@@ -13,11 +13,11 @@ interface Props {
 defineProps<Props>()
 const store = useStreamsStore()
 const container = ref<HTMLElement | null>(null)
-const { rects, ready } = useWallLayout(container)
+const { rects } = useWallLayout(container)
 </script>
 
 <template>
-  <section ref="container" class="wall" :class="{ 'is-ready': ready }">
+  <section ref="container" class="wall">
     <StreamTile
       v-for="(channel, index) in store.channels"
       :key="channel.name"
@@ -33,19 +33,16 @@ const { rects, ready } = useWallLayout(container)
 </template>
 
 <style scoped>
+/*
+ * Les tuiles changent de place d'un coup, sans glissement : pendant une transition elles se
+ * chevaucheraient quelques images, et le lecteur Twitch met en pause tout stream qu'une autre
+ * tuile recouvre, même un instant.
+ */
 .wall {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-
-/* Les tuiles ne glissent qu'une fois la première mesure faite (sinon elles partiraient de 0×0). */
-.wall.is-ready :deep(.tile) {
-  transition:
-    transform 0.32s var(--ease-panel),
-    width 0.32s var(--ease-panel),
-    height 0.32s var(--ease-panel);
 }
 </style>

@@ -12,9 +12,9 @@ export interface TileRect {
   w: number
   h: number
   /**
-   * Tuile masquée (colonne repliée) : elle prend la place du stream principal, derrière lui, et
-   * continue de jouer. Jamais de visibility/display/clip-path : Twitch coupe l'autoplay d'un
-   * lecteur qu'il juge invisible.
+   * Tuile masquée (bloc replié) : elle prend la place du stream principal, derrière lui. Twitch la
+   * met en pause tant qu'elle est recouverte ; elle est relancée dès qu'elle réapparaît. Jamais de
+   * visibility/display/clip-path : le lecteur serait détruit ou son autoplay refusé pour de bon.
    */
   hidden?: boolean
 }
@@ -106,8 +106,8 @@ function maxThumbByWidth(maxBlock: number, cols: number, gap: number): number {
 
 /**
  * Mode focus : un stream aussi grand que possible, les autres en miniatures dans un bloc latéral
- * (à droite ou à gauche), chaque tuile portant sa barre sous la vidéo. Colonne repliée : le stream
- * prend tout, les autres se rangent derrière lui (`hidden`) sans cesser de jouer.
+ * (à droite ou à gauche), chaque tuile portant sa barre au-dessus de la vidéo. Bloc replié : le
+ * stream prend tout, les autres se rangent derrière lui (`hidden`, en pause tant qu'ils y sont).
  *
  * Les miniatures font au moins 300 px de large (seuil de lecture de Twitch) : quand une seule
  * colonne ne suffit pas en hauteur, le bloc passe à 2, 3… colonnes tant qu'il reste sous la moitié
