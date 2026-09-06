@@ -37,11 +37,11 @@ function createAutoHideBar() {
     if (!zone || !next || !zone.contains(next)) focused.value = false
   }
 
-  /** Montre la barre quelques secondes (raccourci clavier) sans l'épingler. */
-  function reveal() {
+  /** Montre la barre quelques secondes (raccourci clavier, toast) sans l'épingler. */
+  function reveal(durationMs: number = REVEAL_MS) {
     clear()
     hovered.value = true
-    timer = window.setTimeout(() => (hovered.value = false), REVEAL_MS)
+    timer = window.setTimeout(() => (hovered.value = false), durationMs)
   }
 
   function togglePin() {

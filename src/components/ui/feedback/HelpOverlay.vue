@@ -1,9 +1,21 @@
 <script setup lang="ts">
+import { watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import IconButton from '@/components/ui/forms/IconButton.vue'
 import { useHelpOverlay } from '@/composables/ui/useHelpOverlay'
+import { nudgePausedSince } from '@/composables/wall/useTwitchPlayer'
 
 const { visible, close } = useHelpOverlay()
+
+/*
+ * Ce panneau recouvre le mur : au bout d'une seconde, Twitch met en pause les streams cachés
+ * dessous. À la fermeture, seuls ceux mis en pause pendant l'ouverture sont relancés.
+ */
+let openedAt = 0
+watch(visible, (open) => {
+  if (open) openedAt = Date.now()
+  else nudgePausedSince(openedAt)
+})
 
 const SHORTCUTS: Array<[string, string]> = [
   ['1 … 9', 'Focus sur le stream n° — à nouveau : retour à la grille'],
@@ -11,7 +23,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ['← →', 'Stream précédent / suivant en focus'],
   ['M', 'Couper / remettre le son'],
   ['F', 'Plein écran navigateur'],
-  ['S', 'Colonne des autres streams : droite → gauche → masquée (mode focus)'],
+  ['S', 'Miniatures des autres streams : à droite → à gauche → masquées (mode focus)'],
   ['C', 'Chat Twitch du stream en focus'],
   ['A ou /', 'Ajouter une chaîne'],
   ['Suppr', 'Retirer le stream en focus'],
@@ -57,9 +69,15 @@ const SHORTCUTS: Array<[string, string]> = [
 
             <h2 class="label-cond help__h">Souris</h2>
             <p class="help__p">
-              La barre apparaît en approchant du bord haut. Survole une tuile pour le son, le focus, l'ordre et le
-              retrait. En focus, les autres streams s'empilent dans une colonne sur le côté : un clic sur une
-              miniature zappe dessus.
+              La barre du haut apparaît en approchant du bord haut. Sous chaque vidéo, une barre porte le nom et
+              l'état du stream ; en la survolant : son, focus, ordre et retrait. En focus, les autres streams sont
+              en miniatures sur le côté : un clic sur une miniature zappe dessus.
+            </p>
+
+            <h2 class="label-cond help__h">Un stream en pause ?</h2>
+            <p class="help__p">
+              Twitch met en pause un stream dès que quelque chose le recouvre (un autre onglet par-dessus, une
+              fenêtre). Clique sur <strong>Reprendre</strong> dans sa barre, ou sur le bouton lecture du lecteur.
             </p>
 
             <h2 class="label-cond help__h">Partager</h2>
@@ -156,7 +174,8 @@ const SHORTCUTS: Array<[string, string]> = [
   margin-top: 8px;
 }
 
-.help__steps strong {
+.help__steps strong,
+.help__p strong {
   color: var(--color-ink-50);
   font-weight: 500;
 }

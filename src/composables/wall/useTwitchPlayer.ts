@@ -29,8 +29,11 @@ export interface UseTwitchPlayerOptions {
 }
 
 const ACTIVATION_EVENTS = ['pointerdown', 'keydown'] as const
-/** Délais des relances quand un lecteur est trouvé en pause après un changement de disposition. */
-const NUDGE_DELAYS_MS = [400, 1500]
+/**
+ * Délais des relances quand un lecteur est trouvé en pause. Le lecteur Twitch réévalue sa
+ * visibilité au plus une fois par seconde : la 2e et la 3e relance tombent après ce délai.
+ */
+const NUDGE_DELAYS_MS = [400, 1500, 3200]
 /**
  * Démarrage échelonné : un lecteur toutes les 700 ms. Huit lecteurs lancés au même instant
  * (script, playlists, pubs, décodeurs) saturent le réseau et le CPU et se figent tous.
@@ -48,6 +51,18 @@ function scheduleBoot(run: () => void): () => void {
   return () => window.clearTimeout(id)
 }
 
+/**
+ * Demande de relance ciblée : après qu'un panneau (aide) a recouvert le mur, seuls les lecteurs
+ * que Twitch a mis en pause pendant ce temps sont relancés — jamais un stream que l'utilisateur
+ * avait lui-même mis en pause avant.
+ */
+const nudgeRequest = ref<{ since: number; serial: number }>({ since: 0, serial: 0 })
+
+/** Relance les lecteurs passés en pause depuis l'horodatage `since` (ms, `Date.now()`). */
+export function nudgePausedSince(since: number): void {
+  nudgeRequest.value = { since, serial: nudgeRequest.value.serial + 1 }
+}
+
 /** Le navigateur a-t-il déjà vu un geste utilisateur sur cette page ? */
 function hasUserActivation(): boolean {
   const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation
@@ -63,7 +78,9 @@ function hasUserActivation(): boolean {
  * - ne rien appeler au READY (ni play(), ni setMuted(false)) : le son est appliqué au PLAYING ;
  * - ne jamais mettre en pause nous-mêmes : une reprise par play() est trop souvent refusée ;
  * - laisser la qualité en « auto » : une qualité forcée empêche le lecteur de descendre quand la
- *   connexion sature, et l'image se fige.
+ *   connexion sature, et l'image se fige ;
+ * - rien ne doit recouvrir l'iframe (voir StreamTile) : en cours de lecture, une occlusion d'une
+ *   seconde met le stream en pause, sans reprise automatique.
  */
 export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitchPlayerOptions) {
   const status = ref<PlayerStatus>('loading')
@@ -73,6 +90,8 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
   let ready = false
   let creating = false
   let disposed = false
+  /** Dernière mise en pause signalée par le lecteur (0 : jamais). */
+  let pausedAt = 0
   let cancelBoot: (() => void) | null = null
   let activationHandler: (() => void) | null = null
   const timers = new Set<number>()
@@ -123,7 +142,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       p.setMuted(muted)
     })
 
-  /** Un lecteur trouvé en pause après un changement de disposition est relancé (miniatures toujours en direct). */
+  /** Un lecteur trouvé en pause est relancé (miniatures toujours en direct). */
   const nudge = () =>
     withPlayer((p) => {
       if (toValue(options.hidden)) return
@@ -166,6 +185,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     p.addEventListener(Twitch.Player.OFFLINE, () => (status.value = 'offline'))
     p.addEventListener(Twitch.Player.ENDED, () => (status.value = 'offline'))
     p.addEventListener(Twitch.Player.PAUSE, () => {
+      pausedAt = Date.now()
       if (status.value === 'live') status.value = 'paused'
     })
     p.addEventListener(Twitch.Player.PLAY, () => {
@@ -201,6 +221,9 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
   watch(() => toValue(options.muted), applyMuted)
   watch(() => toValue(options.hidden), scheduleNudges, { flush: 'post' })
   watchDebounced(() => toValue(options.width), scheduleNudges, { debounce: 500 })
+  watch(nudgeRequest, ({ since }) => {
+    if (pausedAt > 0 && pausedAt >= since) scheduleNudges()
+  })
 
   /** À appeler depuis un clic : lève le blocage d'autoplay et redonne le son. */
   function unblock(): void {
@@ -209,6 +232,11 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       p.play()
     })
     blocked.value = false
+  }
+
+  /** Reprise demandée depuis la barre de la tuile (stream mis en pause par Twitch). */
+  function resume(): void {
+    withPlayer((p) => p.play())
   }
 
   onBeforeUnmount(() => {
@@ -226,5 +254,5 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     }
   })
 
-  return { status: readonly(status), blocked: readonly(blocked), unblock }
+  return { status: readonly(status), blocked: readonly(blocked), unblock, resume }
 }

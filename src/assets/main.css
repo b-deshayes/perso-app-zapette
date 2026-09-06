@@ -30,6 +30,8 @@
   --color-live-600: #d92b2b;
 
   --ease-panel: cubic-bezier(0.22, 0.8, 0.2, 1);
+  /* Hauteur de la barre du haut : quand elle se montre, elle pousse le mur d'autant (jamais dessus). */
+  --bar-h: 46px;
 }
 
 @layer base {
@@ -139,6 +141,19 @@
   .ibtn--sm .ibtn__icon {
     width: 14px;
     height: 14px;
+  }
+
+  /* Barre sous une tuile : 20 px, sans fond au repos. */
+  .ibtn--xs {
+    width: 20px;
+    height: 20px;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .ibtn--xs .ibtn__icon {
+    width: 12px;
+    height: 12px;
   }
 
   /* ---------- Touche clavier ---------- */

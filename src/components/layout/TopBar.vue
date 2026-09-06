@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next'
 import CastControl from '@/components/cast/CastControl.vue'
 import ChannelChip from '@/components/layout/ChannelChip.vue'
+import ToastHost from '@/components/ui/feedback/ToastHost.vue'
 import ChannelInput from '@/components/ui/forms/ChannelInput.vue'
 import IconButton from '@/components/ui/forms/IconButton.vue'
 import { useAutoHideBar } from '@/composables/ui/useAutoHideBar'
@@ -38,9 +39,9 @@ const ADD_MESSAGES: Record<Exclude<AddResult, 'added'>, string> = {
 }
 
 const STRIP_LABELS: Record<StripMode, string> = {
-  right: 'Colonne des autres streams : à droite (puis à gauche)',
-  left: 'Colonne des autres streams : à gauche (puis masquée)',
-  off: 'Colonne des autres streams : masquée (puis à droite)',
+  right: 'Miniatures des autres streams : à droite (puis à gauche)',
+  left: 'Miniatures des autres streams : à gauche (puis masquées)',
+  off: 'Miniatures des autres streams : masquées (puis à droite)',
 }
 const stripIcon = computed(() => (store.strip === 'left' ? PanelLeft : PanelRight))
 
@@ -131,15 +132,17 @@ defineExpose({ focusInput })
         <IconButton :icon="Keyboard" label="Raccourcis et aide" kbd="?" :active="helpVisible" @press="toggleHelp" />
       </div>
     </div>
-    <div class="topzone__handle" aria-hidden="true" />
+    <ToastHost />
   </header>
 </template>
 
 <style scoped>
 /*
- * Masquée, la zone reste survolable mais à opacité 0 : un élément qui chevauche un lecteur Twitch
- * (même transparent) lui fait refuser l'autoplay, sauf s'il est à opacité 0. Épinglée, la barre
- * prend sa place dans le flux au-dessus du mur au lieu de le recouvrir.
+ * La barre ne recouvre JAMAIS un lecteur : un bandeau par-dessus une vidéo, même quelques
+ * secondes, la fait mettre en pause par Twitch. Masquée, elle reste survolable sur 14 px à
+ * opacité 0 (seule l'opacité 0 est ignorée par le test d'occlusion). Visible, elle perd sa zone de
+ * survol et le mur glisse d'autant vers le bas (voir .stage.is-pushed). Épinglée, elle prend sa
+ * place dans le flux.
  */
 .topzone {
   position: fixed;
@@ -156,6 +159,7 @@ defineExpose({ focusInput })
 }
 
 .topzone.is-visible {
+  padding-bottom: 0;
   opacity: 1;
   transform: translateY(0);
 }
@@ -168,33 +172,14 @@ defineExpose({ focusInput })
   transition: none;
 }
 
-.topzone__handle {
-  position: absolute;
-  left: 50%;
-  bottom: 5px;
-  width: 64px;
-  height: 3px;
-  margin-left: -32px;
-  border-radius: 2px;
-  background: var(--color-tally-500);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.topzone.is-pinned .topzone__handle {
-  display: none;
-}
-
 .bar {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 46px;
+  height: var(--bar-h);
   padding: 0 12px;
-  background: color-mix(in srgb, var(--color-ink-900) 90%, transparent);
+  background: var(--color-ink-900);
   border-bottom: 1px solid var(--color-ink-700);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
 }
 
 .brand {

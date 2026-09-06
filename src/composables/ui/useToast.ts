@@ -1,4 +1,5 @@
 import { readonly, ref } from 'vue'
+import { useAutoHideBar } from '@/composables/ui/useAutoHideBar'
 
 export type ToastKind = 'info' | 'warn'
 
@@ -8,20 +9,28 @@ export interface Toast {
   kind: ToastKind
 }
 
-const toasts = ref<Toast[]>([])
+/** Un seul message à la fois : il vit dans la barre du haut, jamais sur le mur (un toast qui recouvrirait un stream le mettrait en pause). */
+const toast = ref<Toast | null>(null)
 let nextId = 1
+let timer: number | undefined
 
-/** Messages éphémères en bas de l'écran (erreurs de saisie, état du cast). */
+/** Messages éphémères (erreurs de saisie, état du cast), affichés dans la barre du haut. */
 export function useToast() {
+  const bar = useAutoHideBar()
+
+  function dismiss(): void {
+    if (timer !== undefined) window.clearTimeout(timer)
+    timer = undefined
+    toast.value = null
+  }
+
   function show(message: string, kind: ToastKind = 'info', durationMs = 2800): void {
-    const id = nextId++
-    toasts.value = [...toasts.value.slice(-2), { id, message, kind }]
-    window.setTimeout(() => dismiss(id), durationMs)
+    dismiss()
+    toast.value = { id: nextId++, message, kind }
+    // La barre se montre le temps du message si elle n'est pas épinglée.
+    bar.reveal(durationMs + 400)
+    timer = window.setTimeout(dismiss, durationMs)
   }
 
-  function dismiss(id: number): void {
-    toasts.value = toasts.value.filter((t) => t.id !== id)
-  }
-
-  return { toasts: readonly(toasts), show, dismiss }
+  return { toast: readonly(toast), show, dismiss }
 }

@@ -1,8 +1,9 @@
 # perso-app-zapette
 
 **Zapette** — plusieurs streams Twitch sur une seule page, un chiffre pour zapper, un bouton pour caster sur la
-TV. Pensé pour suivre ses streamers pendant le **ZEVENT** sans perdre un pixel : aucune barre permanente, les
-tuiles occupent tout l'écran.
+TV. Pensé pour suivre ses streamers pendant le **ZEVENT** sans perdre un pixel : pas de barre du haut permanente,
+les tuiles occupent tout l'écran, et rien n'est jamais affiché par-dessus une vidéo (Twitch mettrait le stream
+en pause).
 
 > 100 % statique (Vue 3 + Vite), hébergé sur Vercel, aucun compte ni backend. L'état du mur vit dans l'URL et le
 > `localStorage` du navigateur.
@@ -12,10 +13,11 @@ tuiles occupent tout l'écran.
 | | |
 |---|---|
 | **Mur de streams** | Grille « multiviewer » : les tuiles 16/9 se répartissent pour maximiser la surface, quelle que soit la taille de la fenêtre. Jusqu'à 12 chaînes. |
-| **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou sur une tuile pour retirer. Flèches sur la tuile pour réordonner. |
-| **Focus** | Un stream en grand, les autres empilés dans une **colonne latérale** de miniatures (toujours en direct, muettes) : un clic sur une miniature zappe. Colonne à droite, à gauche, ou masquée (`S`) ; sur un écran large elle absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Colonne masquée : les autres lecteurs sont mis en pause pour économiser la bande passante. |
+| **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou dans la barre de la tuile pour retirer ; flèches dans la barre pour réordonner. |
+| **Barre de tuile** | Sous chaque vidéo, 24 px : numéro, nom, état (live, hors ligne, pause). Au survol : son, focus, ordre, retrait. Un stream que Twitch a mis en pause affiche **Reprendre**. |
+| **Focus** | Un stream en grand, les autres en **miniatures sur le côté** (toujours en direct, muettes) : un clic sur une miniature zappe. Les miniatures font au moins 300 px de large (en dessous, Twitch ne les lit pas) : quand une colonne ne suffit pas en hauteur, le bloc passe à 2 ou 3 colonnes. Bloc à droite, à gauche, ou masqué (`S`) ; sur un écran large il absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bloc masqué : les autres lecteurs continuent derrière, prêts à zapper. |
 | **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
-| **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut (épinglable avec `H`). |
+| **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut et **pousse le mur** vers le bas plutôt que de le recouvrir (épinglable avec `H`). Les messages (chaîne inconnue, cast…) s'affichent dans cette barre, jamais sur le mur. |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
 | **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et reste affiché sur le PC, qui pilote (voir ci-dessous). |
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
@@ -91,18 +93,26 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 
 ## Pièges Twitch (appris en route)
 
-- Le lecteur **refuse l'autoplay** (« minimum requirements for autoplay were not met: style visibility ») quand
-  l'`isVisible` d'un IntersectionObserver v2 est faux, c'est-à-dire dès qu'un élément de la page **chevauche
-  l'iframe** (même transparent, même en `pointer-events: none` ; seule l'opacité 0 est ignorée) ou qu'un
-  ancêtre porte une opacité < 1, un filtre, un `clip-path`, une transformation autre qu'une translation 2D.
-  Il évalue ça au démarrage et à chaque relance (changement de qualité, fin de pub). L'enforcement est
-  actif sur les domaines publics, pas sur `localhost`. Donc : rien ne recouvre un lecteur au repos — bandeau de
-  contrôle et zone de survol de la barre à opacité 0 tant qu'ils ne sont pas survolés, légende des miniatures
-  **sous** la vidéo, liseré ambre en `outline`, tuiles masquées rangées derrière le stream en focus, aucune
-  animation d'opacité, aucun `clip-path`.
+- Le lecteur observe son iframe avec un IntersectionObserver v2 (`trackVisibility`, délai 1 s). Au démarrage,
+  il **refuse l'autoplay** (« minimum requirements for autoplay were not met: style visibility ») si `isVisible`
+  est faux ; **en cours de lecture, il met le stream en pause** au bout d'une seconde dans le même cas, sans
+  reprise automatique. `isVisible` est faux dès qu'un élément de la page **chevauche l'iframe** (même
+  transparent, même en `pointer-events: none` ; seule l'opacité 0 est ignorée) ou qu'un ancêtre porte une
+  opacité < 1, un filtre, un `clip-path`, une transformation autre qu'une translation 2D. Seule une lecture
+  lancée depuis les contrôles internes du lecteur y échappe (drapeau `userTriggeredPlay`, inaccessible depuis
+  la page : la commande `play` de l'API arrive sans paramètre). Autres seuils lus dans les settings du lecteur :
+  taille minimale **300 × 150 px**, au moins 50 % de l'iframe dans le viewport. Donc : la barre de contrôle
+  est **sous** la vidéo (jamais de bandeau au survol), la barre du haut pousse le mur au lieu de le
+  recouvrir, les toasts vivent dans cette barre, le liseré ambre est un `outline`, la zone de clic des
+  miniatures est à opacité 0, les tuiles masquées sont rangées derrière le stream en focus, aucune animation
+  d'opacité ni `clip-path` sur les tuiles. Le panneau d'aide recouvre tout : à sa fermeture, les lecteurs mis
+  en pause pendant qu'il était ouvert sont relancés. L'enforcement vaut pour tout domaine parent que Twitch
+  n'a pas marqué « safe » (`localhost` compris) ; un onglet non rendu compte comme invisible, d'où des tests
+  locaux trompeurs dans un aperçu masqué.
 - Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures
   restent en direct. Si un lecteur est quand même trouvé en pause après un changement de
-  disposition, il est relancé une ou deux fois.
+  disposition ou après la fermeture de l'aide, il est relancé (0,4 s, 1,5 s, 3,2 s : le lecteur ne réévalue sa
+  visibilité qu'une fois par seconde).
 - Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : le son est
   appliqué au `PLAYING`.
 - Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur reste muet jusqu'au premier
@@ -115,7 +125,7 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 
 ```
 src/
-├── domain/          # Logique pure, testée : layout (grille / focus + colonne), parsing de chaîne, état URL,
+├── domain/          # Logique pure, testée : layout (grille / focus + bloc de miniatures), parsing de chaîne, état URL,
 │                    # validation d'un snapshot, protocole de cast, modes de colonne
 ├── services/        # Chargement de l'embed Twitch, accès à l'API Presentation, localStorage
 ├── stores/          # Pinia : streams (chaînes, son, focus, colonne, chat)
