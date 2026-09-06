@@ -6,8 +6,8 @@ import { useStreamsStore } from '@/stores/streams'
 import type { WallSnapshot } from '@/types/Stream'
 
 /**
- * Hydrate le mur (URL > localStorage > trio par défaut) puis maintient l'URL et le stockage
- * à jour : l'adresse courante est toujours partageable.
+ * Hydrate le mur (URL > localStorage > mur vide) puis maintient l'URL et le stockage
+ * à jour : l'adresse courante est toujours partageable. Aucune chaîne n'est imposée.
  */
 export function useWallPersistence() {
   const store = useStreamsStore()
@@ -25,7 +25,8 @@ export function useWallPersistence() {
 }
 
 function writeUrl(snapshot: WallSnapshot): void {
-  const query = encodeWallState(snapshot).toString()
+  // Les virgules entre chaînes restent lisibles dans la barre d'adresse (pas de %2C).
+  const query = encodeWallState(snapshot).toString().replace(/%2C/gi, ',')
   const next = `${window.location.pathname}${query ? `?${query}` : ''}`
   if (`${window.location.pathname}${window.location.search}` !== next) {
     window.history.replaceState(null, '', next)

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import ChannelInput from '@/components/ui/forms/ChannelInput.vue'
 import { useToast } from '@/composables/ui/useToast'
-import { DEFAULT_CHANNELS, defaultSnapshot } from '@/domain/defaults'
 import { useStreamsStore } from '@/stores/streams'
 
 const store = useStreamsStore()
@@ -10,10 +9,6 @@ const toast = useToast()
 function onSubmit(raw: string) {
   const result = store.add(raw)
   if (result === 'invalid') toast.show('Nom de chaîne Twitch invalide', 'warn')
-}
-
-function restoreDefaults() {
-  store.hydrate(defaultSnapshot())
 }
 </script>
 
@@ -26,9 +21,9 @@ function restoreDefaults() {
         Plusieurs streams sur une seule page. Un chiffre pour zapper, un bouton pour caster sur la TV.
       </p>
       <ChannelInput large autofocus placeholder="Nom de chaîne ou URL Twitch, puis Entrée" @submit="onSubmit" />
-      <button type="button" class="empty__defaults" @click="restoreDefaults">
-        Reprendre {{ DEFAULT_CHANNELS.join(' · ') }}
-      </button>
+      <p class="empty__hint">
+        Ajoute tes chaînes une par une. L'adresse de la page les retiendra, et ce navigateur aussi.
+      </p>
     </div>
   </div>
 </template>
@@ -68,20 +63,10 @@ function restoreDefaults() {
   color: var(--color-ink-300);
 }
 
-.empty__defaults {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px dashed var(--color-ink-500);
-  background: transparent;
-  color: var(--color-ink-300);
+.empty__hint {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  cursor: pointer;
-}
-
-.empty__defaults:hover {
-  color: var(--color-tally-400);
-  border-color: var(--color-tally-500);
+  color: var(--color-ink-400);
 }
 </style>

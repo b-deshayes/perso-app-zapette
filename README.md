@@ -24,7 +24,8 @@ en pause).
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
 | **Démarrage échelonné** | Les lecteurs démarrent l'un après l'autre (un toutes les 0,7 s) et restent en qualité auto : huit lecteurs lancés d'un coup, ou une qualité forcée, saturent la connexion et figent l'image. |
 
-Au premier lancement le mur contient `sylvainlyve`, `zerator` et `amixem`.
+Au premier lancement le mur est vide : aucune chaîne n'est imposée, on ajoute les siennes et l'adresse comme le
+navigateur les retiennent (URL > `localStorage` > mur vide).
 
 ### Raccourcis
 
