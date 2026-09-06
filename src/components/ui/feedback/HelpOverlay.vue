@@ -46,8 +46,8 @@ const SHORTCUTS: Array<[string, string]> = [
             <h2 class="label-cond help__h">Sur la TV · Chromecast</h2>
             <ol class="help__steps">
               <li>
-                <strong>Bouton Cast</strong> dans la barre → choisir la Chromecast. Le mur s'affiche sur la TV et le PC
-                devient la télécommande : focus, son, ajout et retrait de chaînes.
+                <strong>Bouton Cast</strong> dans la barre → choisir la Chromecast. Le mur s'affiche sur la TV et reste
+                affiché ici, son coupé localement : focus, son, ajout et retrait de chaînes se pilotent depuis le PC.
               </li>
               <li>
                 Sinon, dans Chrome : menu <span class="kbd">⋮</span> → <strong>Caster…</strong> → source

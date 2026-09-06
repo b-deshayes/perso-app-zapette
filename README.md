@@ -17,7 +17,7 @@ tuiles occupent tout l'écran.
 | **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
 | **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut (épinglable avec `H`). |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
-| **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et le PC devient télécommande (voir ci-dessous). |
+| **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et reste affiché sur le PC, qui pilote (voir ci-dessous). |
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
 | **Qualité adaptée** | Les miniatures demandent une qualité réduite (360p/480p) — inutile de décoder du 1080p dans 300 px, surtout pendant un cast. |
 
@@ -48,8 +48,8 @@ Deux façons, la première est intégrée à l'application :
 
 1. **Bouton Cast (API Presentation, Chrome / Edge).** La page s'ouvre en mode *récepteur* (`?receiver=1`, sans
    interface) sur la Chromecast : Chrome la rend hors écran et la diffuse (mirroring), le son part sur la TV.
-   Le PC coupe ses lecteurs locaux et affiche des cartes de télécommande : focus, son, ajout, retrait, ordre —
-   chaque changement est poussé à la TV en temps réel. Le bouton arrête la diffusion. Après un rechargement de la
+   Les streams restent affichés sur le PC (son coupé localement, il joue sur la TV) et tout se pilote depuis
+   le PC : focus, son, ajout, retrait, ordre — chaque changement est poussé à la TV en temps réel. Le bouton arrête la diffusion. Après un rechargement de la
    page PC, la télécommande se reconnecte toute seule à la diffusion en cours.
 2. **Menu Chrome `⋮` → Caster… → source « Onglet ».** Marche partout, sans code : passer en plein écran (`F`), la
    barre se cache toute seule.
@@ -121,7 +121,7 @@ src/
 ├── stores/          # Pinia : streams (chaînes, son, focus, colonne, chat)
 ├── composables/     # wall/ (layout, lecteur Twitch, persistance) · ui/ (barre auto-masquée, raccourcis,
 │                    # aide, toasts) · cast/ (contrôleur PC, récepteur TV)
-├── components/      # layout/ (barre, pastilles) · wall/ (mur, tuile, tuile télécommande, chat, états vides)
+├── components/      # layout/ (barre, pastilles) · wall/ (mur, tuile, chat, états vides)
 │                    # · cast/ · ui/ (boutons, champ, toasts, aide)
 └── types/           # Modèles, typage Twitch embed et API Presentation
 ```

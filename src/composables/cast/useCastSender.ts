@@ -17,6 +17,11 @@ const available = ref<boolean | null>(null)
 let connection: PresentationConnectionLike | null = null
 let initialized = false
 
+/** Lecture seule de l'état de diffusion, sans effet de bord (tuiles, aide). */
+export function useCastState() {
+  return readonly(state)
+}
+
 /**
  * Côté PC : ouvre le mur en mode récepteur sur une Chromecast (API Presentation, rendu hors
  * écran puis mirroring par Chrome) et lui pousse chaque changement d'état. Le PC devient la

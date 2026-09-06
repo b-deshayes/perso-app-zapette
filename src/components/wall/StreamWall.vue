@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import EmptyWall from '@/components/wall/EmptyWall.vue'
-import RemoteTile from '@/components/wall/RemoteTile.vue'
 import StreamTile from '@/components/wall/StreamTile.vue'
 import { useWallLayout } from '@/composables/wall/useWallLayout'
 import { useStreamsStore } from '@/stores/streams'
@@ -9,8 +8,6 @@ import { useStreamsStore } from '@/stores/streams'
 interface Props {
   /** Interface (survol, boutons, état vide). Faux sur la TV. */
   interactive: boolean
-  /** Le mur est diffusé sur la TV : cartes de télécommande à la place des lecteurs. */
-  remote: boolean
 }
 
 defineProps<Props>()
@@ -20,25 +17,17 @@ const { rects, ready } = useWallLayout(container)
 </script>
 
 <template>
-  <section ref="container" class="wall" :class="{ 'is-ready': ready, 'wall--remote': remote }">
-    <template v-for="(channel, index) in store.channels" :key="channel.name">
-      <RemoteTile
-        v-if="remote"
-        :channel="channel"
-        :index="index"
-        :rect="rects[index]"
-        :focused="store.focused === channel.name"
-      />
-      <StreamTile
-        v-else
-        :channel="channel"
-        :index="index"
-        :rect="rects[index]"
-        :interactive="interactive"
-        :focused="store.focused === channel.name"
-        :thumbnail="store.focused !== null && store.focused !== channel.name"
-      />
-    </template>
+  <section ref="container" class="wall" :class="{ 'is-ready': ready }">
+    <StreamTile
+      v-for="(channel, index) in store.channels"
+      :key="channel.name"
+      :channel="channel"
+      :index="index"
+      :rect="rects[index]"
+      :interactive="interactive"
+      :focused="store.focused === channel.name"
+      :thumbnail="store.focused !== null && store.focused !== channel.name"
+    />
     <EmptyWall v-if="interactive && store.count === 0" />
   </section>
 </template>

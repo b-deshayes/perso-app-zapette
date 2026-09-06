@@ -27,7 +27,7 @@ const label = computed(() => {
 async function onPress() {
   if (state.value !== 'idle') {
     stop()
-    toast.show('Diffusion arrêtée — les lecteurs reviennent ici')
+    toast.show('Diffusion arrêtée — le son revient ici')
     return
   }
   if (!supported.value) {
@@ -40,7 +40,9 @@ async function onPress() {
   }
   const result = await start()
   if (result === 'unavailable') toast.show(`Aucun écran trouvé sur le réseau. ${CHROME_FALLBACK}`, 'warn', 7000)
-  else if (result === 'started') toast.show('Connexion à la TV… le PC devient télécommande', 'info', 4000)
+  else if (result === 'started') {
+    toast.show('Connexion à la TV… les streams restent affichés ici, le son passe sur la TV', 'info', 5000)
+  }
 }
 </script>
 

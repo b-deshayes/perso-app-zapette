@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Volume2, VolumeX, X } from 'lucide-vue-next'
 import IconButton from '@/components/ui/forms/IconButton.vue'
+import { useCastState } from '@/composables/cast/useCastSender'
 import { useTwitchPlayer, type PlayerStatus } from '@/composables/wall/useTwitchPlayer'
 import type { TileRect } from '@/domain/layout'
 import { useStreamsStore } from '@/stores/streams'
@@ -31,9 +32,12 @@ const style = computed(() => ({
   height: `${rect.value.h}px`,
 }))
 
+/** Pendant une diffusion vers la TV, le son joue là-bas : les lecteurs locaux restent affichés mais muets. */
+const castState = useCastState()
+
 const { status, blocked, unblock } = useTwitchPlayer(host, {
   channel: props.channel.name,
-  muted: () => props.channel.muted,
+  muted: () => props.channel.muted || castState.value === 'connected',
   hidden,
   width: () => rect.value.w,
   // Sur la TV (non interactif) le son part tout seul ; sur le PC on attend le premier geste.

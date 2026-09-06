@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { useFullscreen } from '@vueuse/core'
 import TopBar from '@/components/layout/TopBar.vue'
 import HelpOverlay from '@/components/ui/feedback/HelpOverlay.vue'
@@ -20,13 +20,11 @@ const receiver = isReceiverMode(new URLSearchParams(window.location.search))
 const topBar = ref<InstanceType<typeof TopBar> | null>(null)
 const { toggle: toggleFullscreen } = useFullscreen(document.documentElement)
 
-const cast = receiver ? null : useCastSender()
-/** Diffusion en cours : le PC n'affiche plus les lecteurs, seulement la télécommande. */
-const remote = computed(() => cast?.state.value === 'connected')
-
 if (receiver) {
   useCastReceiver()
 } else {
+  // Diffusion vers la TV : les streams restent affichés ici (son coupé localement, il joue sur la TV).
+  useCastSender()
   useWallPersistence()
   useKeyboardShortcuts({
     toggleFullscreen: () => {
@@ -46,14 +44,14 @@ watchEffect(() => {
 <template>
   <div class="app" :class="{ 'app--receiver': receiver }">
     <template v-if="receiver">
-      <StreamWall :interactive="false" :remote="false" />
+      <StreamWall :interactive="false" />
       <ReceiverIdle v-if="store.count === 0" />
     </template>
 
     <template v-else>
       <TopBar ref="topBar" />
       <main class="stage">
-        <StreamWall :interactive="true" :remote="remote" />
+        <StreamWall :interactive="true" />
         <ChatPanel v-if="store.chat && store.chatChannel" :channel="store.chatChannel" />
       </main>
       <HelpOverlay />
