@@ -18,7 +18,7 @@ export type PlayerStatus = 'loading' | 'live' | 'offline' | 'paused' | 'error'
 export interface UseTwitchPlayerOptions {
   channel: string
   muted: MaybeRefOrGetter<boolean>
-  /** Tuile rognée (colonne repliée) : on met le lecteur en pause pour économiser la bande passante. */
+  /** Tuile rognée (colonne masquée) : le lecteur continue en qualité minimale, jamais en pause. */
   hidden: MaybeRefOrGetter<boolean>
   /** Largeur affichée, pour adapter la qualité demandée. */
   width: MaybeRefOrGetter<number>
@@ -30,6 +30,8 @@ export interface UseTwitchPlayerOptions {
 }
 
 const ACTIVATION_EVENTS = ['pointerdown', 'keydown'] as const
+/** Délais des relances quand un lecteur est trouvé en pause après un changement de disposition. */
+const NUDGE_DELAYS_MS = [400, 1500]
 
 /** Le navigateur a-t-il déjà vu un geste utilisateur sur cette page ? */
 function hasUserActivation(): boolean {
@@ -38,11 +40,13 @@ function hasUserActivation(): boolean {
 }
 
 /**
- * Pilote un lecteur Twitch dans `host` : création, son, qualité, pause, statut live/hors ligne.
+ * Pilote un lecteur Twitch dans `host` : création, son, qualité, statut live/hors ligne.
  *
  * Règles apprises à la dure (Twitch coupe l'autoplay pour de bon si elles sont violées) :
- * - ne créer le lecteur qu'une fois la tuile réellement visible (jamais dans un élément masqué) ;
- * - ne rien appeler au READY (ni play(), ni setMuted(false)) : le son demandé est appliqué au PLAYING.
+ * - ne créer le lecteur qu'une fois la tuile réellement visible (jamais dans un élément masqué,
+ *   ni pendant une animation d'opacité) ;
+ * - ne rien appeler au READY (ni play(), ni setMuted(false)) : son et qualité sont appliqués au PLAYING ;
+ * - ne jamais mettre en pause nous-mêmes : une reprise par play() est trop souvent refusée.
  */
 export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitchPlayerOptions) {
   const status = ref<PlayerStatus>('loading')
@@ -53,6 +57,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
   let creating = false
   let disposed = false
   let activationHandler: (() => void) | null = null
+  const timers = new Set<number>()
 
   function withPlayer(action: (p: Twitch.Player) => void): void {
     const p = player.value
@@ -62,6 +67,14 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     } catch {
       // Le lecteur peut être détruit ou pas encore prêt : on ignore, l'état sera réappliqué.
     }
+  }
+
+  function later(delayMs: number, action: () => void): void {
+    const id = window.setTimeout(() => {
+      timers.delete(id)
+      if (!disposed) action()
+    }, delayMs)
+    timers.add(id)
   }
 
   function disarmActivation(): void {
@@ -92,17 +105,21 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       p.setMuted(muted)
     })
 
-  const applyHidden = () =>
-    withPlayer((p) => {
-      if (toValue(options.hidden)) p.pause()
-      else if (p.isPaused()) p.play()
-    })
-
   const applyQuality = () =>
     withPlayer((p) => {
-      const wanted = pickQuality(p.getQualities(), toValue(options.width))
+      const wanted = pickQuality(p.getQualities(), toValue(options.width), { minimal: toValue(options.hidden) })
       if (wanted !== p.getQuality()) p.setQuality(wanted)
     })
+
+  /** Un lecteur trouvé en pause après un changement de disposition est relancé (miniatures toujours en direct). */
+  const nudge = () =>
+    withPlayer((p) => {
+      if (status.value !== 'loading' && p.isPaused()) p.play()
+    })
+
+  function scheduleNudges(): void {
+    for (const delay of NUDGE_DELAYS_MS) later(delay, nudge)
+  }
 
   async function createPlayer(): Promise<void> {
     try {
@@ -124,13 +141,12 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     })
     p.addEventListener(Twitch.Player.READY, () => {
       ready = true
-      applyQuality()
-      if (toValue(options.hidden)) p.pause()
     })
     p.addEventListener(Twitch.Player.PLAYING, () => {
       status.value = 'live'
       blocked.value = false
       applyMuted()
+      applyQuality()
     })
     p.addEventListener(Twitch.Player.ONLINE, () => {
       if (status.value === 'offline') status.value = 'loading'
@@ -144,6 +160,15 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       if (status.value === 'paused') status.value = 'live'
     })
     p.addEventListener(Twitch.Player.PLAYBACK_BLOCKED, () => (blocked.value = true))
+    if (import.meta.env.DEV) {
+      // Registre de debug : window.__zapettePlayers.get('zerator').isPaused() depuis la console.
+      const registry = ((window as unknown as { __zapettePlayers?: Map<string, Twitch.Player> }).__zapettePlayers ??=
+        new Map())
+      registry.set(options.channel, p)
+      for (const event of ['ready', 'play', 'playing', 'pause', 'playbackBlocked', 'online', 'offline', 'ended']) {
+        p.addEventListener(event, () => console.debug(`[player:${options.channel}] ${event}`))
+      }
+    }
     player.value = p
   }
 
@@ -162,13 +187,22 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
   })
 
   watch(() => toValue(options.muted), applyMuted)
-  // Après le rendu (la tuile est déjà dé-rognée quand on relance la lecture).
   watch(
     () => toValue(options.hidden),
-    () => requestAnimationFrame(applyHidden),
+    () => {
+      applyQuality()
+      scheduleNudges()
+    },
     { flush: 'post' },
   )
-  watchDebounced(() => toValue(options.width), applyQuality, { debounce: 500 })
+  watchDebounced(
+    () => toValue(options.width),
+    () => {
+      applyQuality()
+      scheduleNudges()
+    },
+    { debounce: 500 },
+  )
 
   /** À appeler depuis un clic : lève le blocage d'autoplay et redonne le son. */
   function unblock(): void {
@@ -182,6 +216,8 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
   onBeforeUnmount(() => {
     disposed = true
     disarmActivation()
+    for (const id of timers) window.clearTimeout(id)
+    timers.clear()
     const p = player.value
     player.value = null
     try {

@@ -92,11 +92,15 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 ## Pièges Twitch (appris en route)
 
 - Le lecteur **refuse définitivement l'autoplay** s'il détecte qu'il est `visibility: hidden` / `display: none`
-  au chargement (« minimum requirements for autoplay were not met: style visibility »). Les tuiles ne sont donc
-  créées qu'une fois mesurées et visibles, et une tuile masquée est **rognée** (`clip-path`) et mise en pause,
-  jamais cachée au sens CSS.
-- Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : le son demandé est
-  appliqué au `PLAYING`.
+  ou à opacité nulle (« minimum requirements for autoplay were not met: style visibility »), et il évalue ça à
+  des moments imprévisibles (démarrage, changement de qualité). Donc : aucune animation d'opacité ni filtre sur
+  les tuiles, lecteur créé seulement une fois la tuile mesurée et visible, tuile masquée **rognée**
+  (`clip-path`) et passée en qualité minimale, jamais cachée au sens CSS.
+- Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures
+  restent en direct, en basse qualité. Si un lecteur est quand même trouvé en pause après un changement de
+  disposition, il est relancé une ou deux fois.
+- Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : son et qualité sont
+  appliqués au `PLAYING`.
 - Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur reste muet jusqu'au premier
   clic / touche sur la page, sauf sur la TV (récepteur Presentation) où Chrome autorise l'autoplay sonore.
 - Le bruit console (`amazon-adsystem` bloqué par un bloqueur de pub, `attribution-reporting`, `accelerometer`,

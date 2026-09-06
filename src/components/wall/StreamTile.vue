@@ -29,7 +29,6 @@ const style = computed(() => ({
   transform: `translate(${rect.value.x}px, ${rect.value.y}px)`,
   width: `${rect.value.w}px`,
   height: `${rect.value.h}px`,
-  '--i': String(props.index),
 }))
 
 const { status, blocked, unblock } = useTwitchPlayer(host, {
@@ -129,6 +128,11 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
 </template>
 
 <style scoped>
+/*
+ * Aucune animation d'opacité ni filtre sur la tuile : Twitch évalue la « style visibility » du
+ * lecteur à des moments imprévisibles et coupe l'autoplay pour de bon s'il le trouve à opacité 0.
+ * Seuls transform / taille / clip-path bougent (transitions dans StreamWall).
+ */
 .tile {
   position: absolute;
   top: 0;
@@ -138,15 +142,7 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
   will-change: transform;
 }
 
-.tile:not(.tile--hidden) {
-  animation: tile-in 0.45s var(--ease-panel) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
-}
-
-/*
- * Masquage par rognage, jamais par visibility/display : Twitch désactive l'autoplay pour de bon
- * s'il détecte un lecteur invisible « au sens du style ». La tuile passe aussi sous les autres.
- */
+/* Masquage par rognage, jamais par visibility/display, et la tuile passe sous les autres. */
 .tile--hidden {
   clip-path: inset(50%);
   pointer-events: none;
@@ -163,10 +159,6 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
   width: 100%;
   height: 100%;
   border: 0;
-}
-
-.tile--offline .tile__player {
-  filter: grayscale(0.6) brightness(0.7);
 }
 
 /* Tally : liseré ambre sur ce qu'on entend */
