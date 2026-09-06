@@ -1,0 +1,33 @@
+{
+  "name": "perso-app-zapette",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Zapette — plusieurs streams Twitch sur une page, focus plein écran, cast Chromecast. Pensé pour le ZEVENT.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc -b"
+  },
+  "dependencies": {
+    "@vueuse/core": "^14.4.0",
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.40"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.8"
+  }
+}
