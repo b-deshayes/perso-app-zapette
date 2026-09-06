@@ -61,7 +61,7 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
         break
       case 's':
       case 'S':
-        store.toggleStrip()
+        store.cycleStrip()
         break
       case 'h':
       case 'H':

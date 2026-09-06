@@ -18,7 +18,7 @@ export type PlayerStatus = 'loading' | 'live' | 'offline' | 'paused' | 'error'
 export interface UseTwitchPlayerOptions {
   channel: string
   muted: MaybeRefOrGetter<boolean>
-  /** Tuile masquée (bandeau replié) : on met le lecteur en pause pour économiser la bande passante. */
+  /** Tuile rognée (colonne repliée) : on met le lecteur en pause pour économiser la bande passante. */
   hidden: MaybeRefOrGetter<boolean>
   /** Largeur affichée, pour adapter la qualité demandée. */
   width: MaybeRefOrGetter<number>
@@ -37,13 +37,20 @@ function hasUserActivation(): boolean {
   return activation ? activation.hasBeenActive : true
 }
 
-/** Pilote un lecteur Twitch dans `host` : création, son, qualité, pause, statut live/hors ligne. */
+/**
+ * Pilote un lecteur Twitch dans `host` : création, son, qualité, pause, statut live/hors ligne.
+ *
+ * Règles apprises à la dure (Twitch coupe l'autoplay pour de bon si elles sont violées) :
+ * - ne créer le lecteur qu'une fois la tuile réellement visible (jamais dans un élément masqué) ;
+ * - ne rien appeler au READY (ni play(), ni setMuted(false)) : le son demandé est appliqué au PLAYING.
+ */
 export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitchPlayerOptions) {
   const status = ref<PlayerStatus>('loading')
   /** Le navigateur a refusé la lecture avec son (autoplay) : il faut un clic. */
   const blocked = ref(false)
   const player = shallowRef<Twitch.Player | null>(null)
   let ready = false
+  let creating = false
   let disposed = false
   let activationHandler: (() => void) | null = null
 
@@ -84,28 +91,29 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       disarmActivation()
       p.setMuted(muted)
     })
+
   const applyHidden = () =>
     withPlayer((p) => {
       if (toValue(options.hidden)) p.pause()
       else if (p.isPaused()) p.play()
     })
+
   const applyQuality = () =>
     withPlayer((p) => {
       const wanted = pickQuality(p.getQualities(), toValue(options.width))
       if (wanted !== p.getQuality()) p.setQuality(wanted)
     })
 
-  onMounted(async () => {
+  async function createPlayer(): Promise<void> {
     try {
       await loadTwitchEmbed()
     } catch {
       status.value = 'error'
       return
     }
-    if (disposed || !host.value) return
+    if (disposed || !host.value || player.value) return
 
-    // Toujours créé muet : l'autoplay muet passe partout, le son demandé est appliqué au READY
-    // (et, s'il est refusé faute de clic, Twitch signale PLAYBACK_BLOCKED → bouton « Activer le son »).
+    // Toujours créé muet : l'autoplay muet passe partout, le son demandé est appliqué au PLAYING.
     const p = new Twitch.Player(host.value, {
       channel: options.channel,
       parent: embedParents(),
@@ -114,8 +122,6 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       width: '100%',
       height: '100%',
     })
-    // Surtout pas de play() ni de setMuted(false) au READY : un appel programmatique à ce moment-là
-    // court-circuite l'autoplay du lecteur, qui affiche alors son gros bouton « lecture ».
     p.addEventListener(Twitch.Player.READY, () => {
       ready = true
       applyQuality()
@@ -138,16 +144,30 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       if (status.value === 'paused') status.value = 'live'
     })
     p.addEventListener(Twitch.Player.PLAYBACK_BLOCKED, () => (blocked.value = true))
-    if (import.meta.env.DEV) {
-      for (const event of ['ready', 'play', 'playing', 'pause', 'playbackBlocked', 'online', 'offline', 'ended']) {
-        p.addEventListener(event, () => console.debug(`[player:${options.channel}] ${event}`))
-      }
-    }
     player.value = p
+  }
+
+  onMounted(() => {
+    // Création différée : la tuile doit être visible (mesurée, non rognée) au moment où Twitch
+    // évalue ses conditions d'autoplay.
+    watch(
+      () => toValue(options.hidden),
+      (hidden) => {
+        if (hidden || creating || disposed) return
+        creating = true
+        void createPlayer()
+      },
+      { immediate: true, flush: 'post' },
+    )
   })
 
   watch(() => toValue(options.muted), applyMuted)
-  watch(() => toValue(options.hidden), applyHidden)
+  // Après le rendu (la tuile est déjà dé-rognée quand on relance la lecture).
+  watch(
+    () => toValue(options.hidden),
+    () => requestAnimationFrame(applyHidden),
+    { flush: 'post' },
+  )
   watchDebounced(() => toValue(options.width), applyQuality, { debounce: 500 })
 
   /** À appeler depuis un clic : lève le blocage d'autoplay et redonne le son. */

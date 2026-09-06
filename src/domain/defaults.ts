@@ -1,3 +1,4 @@
+import { DEFAULT_STRIP } from '@/domain/strip'
 import type { WallSnapshot } from '@/types/Stream'
 
 /** Le trio de départ : les chaînes suivies pour le ZEVENT. */
@@ -7,7 +8,7 @@ export function defaultSnapshot(): WallSnapshot {
   return {
     channels: DEFAULT_CHANNELS.map((name, index) => ({ name, muted: index !== 0 })),
     focused: null,
-    strip: true,
+    strip: DEFAULT_STRIP,
     chat: false,
   }
 }

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Maximize2, Minimize2, Volume2, VolumeX, X } from 'lucide-vue-next'
 import IconButton from '@/components/ui/forms/IconButton.vue'
-import { HIDDEN_RECT, type TileRect } from '@/domain/layout'
+import type { TileRect } from '@/domain/layout'
 import { useStreamsStore } from '@/stores/streams'
 import type { StreamChannel } from '@/types/Stream'
 
@@ -16,8 +16,8 @@ interface Props {
 const props = defineProps<Props>()
 const store = useStreamsStore()
 
-const rect = computed(() => props.rect ?? HIDDEN_RECT)
-const hidden = computed(() => rect.value.w < 1)
+const rect = computed<TileRect>(() => props.rect ?? { x: 0, y: 0, w: 0, h: 0, hidden: true })
+const hidden = computed(() => rect.value.hidden === true || rect.value.w < 1)
 const small = computed(() => rect.value.w < 420)
 const style = computed(() => ({
   transform: `translate(${rect.value.x}px, ${rect.value.y}px)`,

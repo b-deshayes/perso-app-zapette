@@ -108,7 +108,7 @@ describe('useStreamsStore', () => {
           { name: 'b2', muted: false },
         ],
         focused: 'b2',
-        strip: false,
+        strip: 'left' as const,
         chat: true,
       }
       store.hydrate(snapshot)
@@ -116,6 +116,19 @@ describe('useStreamsStore', () => {
       expect(store.chatChannel).toBe('b2')
       store.hydrate({ ...snapshot, focused: 'inconnu' })
       expect(store.focused).toBeNull()
+    })
+
+    it('should_cycle_strip_right_left_off', () => {
+      const store = useStreamsStore()
+      expect(store.strip).toBe('right')
+      store.cycleStrip()
+      expect(store.strip).toBe('left')
+      store.cycleStrip()
+      expect(store.strip).toBe('off')
+      store.cycleStrip()
+      expect(store.strip).toBe('right')
+      store.setStrip('off')
+      expect(store.strip).toBe('off')
     })
   })
 })

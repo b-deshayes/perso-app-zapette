@@ -1,3 +1,5 @@
+import type { StripMode } from '@/types/Stream'
+
 /** Moteur de placement des tuiles : pur, testé, sans dépendance Vue. */
 export interface Size {
   width: number
@@ -9,20 +11,32 @@ export interface TileRect {
   y: number
   w: number
   h: number
+  /**
+   * Tuile masquée (colonne repliée) : elle garde une taille réelle et reste « visible » au sens CSS,
+   * seulement rognée et mise en pause — Twitch refuse définitivement l'autoplay d'un lecteur qui a
+   * été `visibility: hidden` ou `display: none`.
+   */
+  hidden?: boolean
 }
 
 export interface FocusLayoutOptions {
-  /** Afficher le bandeau des autres streams sous le stream en focus. */
-  strip: boolean
+  /** Colonne des autres streams : à droite, à gauche, ou masquée. */
+  strip: StripMode
   gap?: number
 }
 
 export const TILE_RATIO = 16 / 9
 export const TILE_GAP = 2
-export const HIDDEN_RECT: TileRect = { x: 0, y: 0, w: 0, h: 0 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+/** Plus grand rectangle 16/9 dans une zone, centré. */
+function fitTile(areaX: number, areaY: number, areaW: number, areaH: number): TileRect {
+  const w = Math.min(areaW, areaH * TILE_RATIO)
+  const h = w / TILE_RATIO
+  return { x: areaX + (areaW - w) / 2, y: areaY + (areaH - h) / 2, w, h }
 }
 
 /**
@@ -63,8 +77,13 @@ export function computeGridLayout(size: Size, count: number, gap: number = TILE_
 }
 
 /**
- * Mode focus : un stream aussi grand que possible, les autres en bandeau de miniatures en bas
- * (ou masqués — rect nul — si le bandeau est replié).
+ * Mode focus : un stream aussi grand que possible, les autres empilés dans une colonne latérale
+ * (à droite ou à gauche). Colonne repliée : le stream prend tout, les autres gardent leur place
+ * de colonne mais sont marqués `hidden` (rognés et en pause par la vue).
+ *
+ * La colonne part de ~20 % de la largeur, ne dépasse jamais la hauteur disponible pour N-1
+ * miniatures, et récupère toute la largeur que le stream principal ne peut pas utiliser quand
+ * c'est la hauteur qui le limite (écran large) : pas de gouttière noire inutile.
  */
 export function computeFocusLayout(
   size: Size,
@@ -76,41 +95,36 @@ export function computeFocusLayout(
   const gap = options.gap ?? TILE_GAP
   const index = clamp(focusedIndex, 0, count - 1)
   const others = count - 1
-  const showStrip = options.strip && others > 0
+  const collapsed = options.strip === 'off'
+  const side = options.strip === 'left' ? 'left' : 'right'
 
-  let thumbW = 0
-  let thumbH = 0
-  let stripH = 0
-  if (showStrip) {
-    thumbH = clamp(size.height * 0.16, 64, 220)
-    thumbW = thumbH * TILE_RATIO
-    const maxTotal = size.width
-    if (others * thumbW + gap * (others - 1) > maxTotal) {
-      thumbW = (maxTotal - gap * (others - 1)) / others
-      thumbH = thumbW / TILE_RATIO
-    }
-    stripH = thumbH + gap
-  }
+  if (others === 0) return [fitTile(0, 0, size.width, size.height)]
 
-  const availH = size.height - stripH
-  const mainW = Math.min(size.width, availH * TILE_RATIO)
-  const mainH = mainW / TILE_RATIO
-  const main: TileRect = { x: (size.width - mainW) / 2, y: (availH - mainH) / 2, w: mainW, h: mainH }
+  const columnGaps = gap * (others - 1)
+  const maxColumnByHeight = ((size.height - columnGaps) / others) * TILE_RATIO
+  let column = Math.min(clamp(size.width * 0.2, 160, 480), maxColumnByHeight, size.width * 0.5)
+  const mainW = Math.min(size.width - column - gap, size.height * TILE_RATIO)
+  const leftover = size.width - gap - mainW - column
+  if (leftover > 0) column = Math.min(column + leftover, maxColumnByHeight, size.width * 0.35)
+
+  const main = collapsed
+    ? fitTile(0, 0, size.width, size.height)
+    : fitTile(side === 'right' ? 0 : column + gap, 0, size.width - column - gap, size.height)
+
+  const thumbH = column / TILE_RATIO
+  const columnX = side === 'right' ? size.width - column : 0
+  let y = (size.height - (others * thumbH + columnGaps)) / 2
 
   const rects: TileRect[] = []
-  let x = showStrip ? (size.width - (others * thumbW + gap * (others - 1))) / 2 : 0
-  const y = size.height - thumbH
   for (let i = 0; i < count; i++) {
     if (i === index) {
       rects.push(main)
       continue
     }
-    if (!showStrip) {
-      rects.push(HIDDEN_RECT)
-      continue
-    }
-    rects.push({ x, y, w: thumbW, h: thumbH })
-    x += thumbW + gap
+    const rect: TileRect = { x: columnX, y, w: column, h: thumbH }
+    if (collapsed) rect.hidden = true
+    rects.push(rect)
+    y += thumbH + gap
   }
   return rects
 }

@@ -1,4 +1,5 @@
 import { MAX_CHANNELS, parseChannelInput } from '@/domain/channel'
+import { parseStripMode } from '@/domain/strip'
 import type { StreamChannel, WallSnapshot } from '@/types/Stream'
 
 /**
@@ -26,7 +27,7 @@ export function sanitizeSnapshot(input: unknown): WallSnapshot | null {
   return {
     channels,
     focused: focused && seen.has(focused) ? focused : null,
-    strip: raw.strip !== false,
+    strip: parseStripMode(raw.strip),
     chat: raw.chat === true,
   }
 }

@@ -1,4 +1,5 @@
 import { parseChannelInput } from '@/domain/channel'
+import { DEFAULT_STRIP, parseStripMode } from '@/domain/strip'
 import type { WallSnapshot } from '@/types/Stream'
 
 /**
@@ -8,7 +9,7 @@ import type { WallSnapshot } from '@/types/Stream'
  *   ?c=sylvainlyve,zerator,amixem   chaînes, dans l'ordre
  *   &a=zerator                      chaînes audibles (vide = tout coupé, absent = la première)
  *   &f=zerator                      chaîne en focus
- *   &strip=0                        bandeau replié
+ *   &strip=left                     colonne des autres streams : right (défaut), left, off
  *   &chat=1                         chat ouvert
  *   &receiver=1                     mode récepteur (TV) : aucune interface, piloté par le PC
  */
@@ -33,7 +34,7 @@ export function encodeWallState(snapshot: WallSnapshot): URLSearchParams {
       .join(','),
   )
   if (snapshot.focused) params.set(URL_KEYS.focused, snapshot.focused)
-  if (!snapshot.strip) params.set(URL_KEYS.strip, '0')
+  if (snapshot.strip !== DEFAULT_STRIP) params.set(URL_KEYS.strip, snapshot.strip)
   if (snapshot.chat) params.set(URL_KEYS.chat, '1')
   return params
 }
@@ -59,7 +60,7 @@ export function decodeWallState(params: URLSearchParams): WallSnapshot | null {
   return {
     channels: names.map((name) => ({ name, muted: !audible.has(name) })),
     focused: focused && names.includes(focused) ? focused : null,
-    strip: params.get(URL_KEYS.strip) !== '0',
+    strip: parseStripMode(params.get(URL_KEYS.strip)),
     chat: params.get(URL_KEYS.chat) === '1',
   }
 }

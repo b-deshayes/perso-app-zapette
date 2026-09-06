@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useFullscreen } from '@vueuse/core'
 import {
   Keyboard,
@@ -8,7 +8,8 @@ import {
   Maximize2,
   MessageSquare,
   Minimize,
-  PanelBottom,
+  PanelLeft,
+  PanelRight,
   Pin,
   PinOff,
 } from 'lucide-vue-next'
@@ -21,6 +22,7 @@ import { useHelpOverlay } from '@/composables/ui/useHelpOverlay'
 import { useToast } from '@/composables/ui/useToast'
 import { MAX_CHANNELS } from '@/domain/channel'
 import { useStreamsStore, type AddResult } from '@/stores/streams'
+import type { StripMode } from '@/types/Stream'
 
 const store = useStreamsStore()
 const { visible, pinned, onEnter, onLeave, onFocusIn, onFocusOut, reveal, togglePin } = useAutoHideBar()
@@ -34,6 +36,13 @@ const ADD_MESSAGES: Record<Exclude<AddResult, 'added'>, string> = {
   invalid: 'Nom de chaîne Twitch invalide',
   full: `Maximum ${MAX_CHANNELS} chaînes — retire-en une d'abord`,
 }
+
+const STRIP_LABELS: Record<StripMode, string> = {
+  right: 'Colonne des autres streams : à droite (puis à gauche)',
+  left: 'Colonne des autres streams : à gauche (puis masquée)',
+  off: 'Colonne des autres streams : masquée (puis à droite)',
+}
+const stripIcon = computed(() => (store.strip === 'left' ? PanelLeft : PanelRight))
 
 function onSubmit(raw: string) {
   const result = store.add(raw)
@@ -92,12 +101,12 @@ defineExpose({ focusInput })
           @press="toggleMode"
         />
         <IconButton
-          :icon="PanelBottom"
-          label="Bandeau des autres streams"
+          :icon="stripIcon"
+          :label="STRIP_LABELS[store.strip]"
           kbd="S"
-          :active="store.strip && store.focused !== null"
+          :active="store.strip !== 'off' && store.focused !== null"
           :disabled="!store.focused"
-          @press="store.toggleStrip"
+          @press="store.cycleStrip"
         />
         <IconButton
           :icon="MessageSquare"

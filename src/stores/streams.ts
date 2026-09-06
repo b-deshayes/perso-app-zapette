@@ -1,7 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { MAX_CHANNELS, parseChannelInput } from '@/domain/channel'
-import type { StreamChannel, WallMode, WallSnapshot } from '@/types/Stream'
+import { DEFAULT_STRIP, nextStripMode } from '@/domain/strip'
+import type { StreamChannel, StripMode, WallMode, WallSnapshot } from '@/types/Stream'
 
 export type AddResult = 'added' | 'exists' | 'invalid' | 'full'
 
@@ -12,7 +13,7 @@ export type AddResult = 'added' | 'exists' | 'invalid' | 'full'
 export const useStreamsStore = defineStore('streams', () => {
   const channels = ref<StreamChannel[]>([])
   const focused = ref<string | null>(null)
-  const strip = ref(true)
+  const strip = ref<StripMode>(DEFAULT_STRIP)
   const chat = ref(false)
 
   /** Sons tels qu'ils étaient avant le passage en focus, restaurés au retour à la grille. */
@@ -137,8 +138,13 @@ export const useStreamsStore = defineStore('streams', () => {
     channels.value = list
   }
 
-  function toggleStrip(): void {
-    strip.value = !strip.value
+  /** Colonne des autres streams : droite → gauche → masquée. */
+  function cycleStrip(): void {
+    strip.value = nextStripMode(strip.value)
+  }
+
+  function setStrip(mode: StripMode): void {
+    strip.value = mode
   }
 
   function toggleChat(): void {
@@ -186,7 +192,8 @@ export const useStreamsStore = defineStore('streams', () => {
     focusIndex,
     cycleFocus,
     move,
-    toggleStrip,
+    cycleStrip,
+    setStrip,
     toggleChat,
     hydrate,
     snapshot,

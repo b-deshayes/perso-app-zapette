@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { computeFocusLayout, computeGridLayout, HIDDEN_RECT, TILE_RATIO } from './layout'
+import { computeFocusLayout, computeGridLayout, TILE_RATIO } from './layout'
 
 const HD = { width: 1920, height: 1080 }
+const ULTRAWIDE = { width: 3440, height: 1440 }
 
 function isRatio(w: number, h: number): boolean {
   return Math.abs(w / h - TILE_RATIO) < 1e-6
@@ -64,41 +65,72 @@ describe('computeGridLayout', () => {
 
 describe('computeFocusLayout', () => {
   it('should_fill_container_when_alone', () => {
-    const [tile] = computeFocusLayout(HD, 1, 0, { strip: true })
+    const [tile] = computeFocusLayout(HD, 1, 0, { strip: 'right' })
     expect(tile).toEqual({ x: 0, y: 0, w: 1920, h: 1080 })
   })
 
-  it('should_place_focused_big_and_others_in_bottom_strip', () => {
-    const rects = computeFocusLayout(HD, 3, 1, { strip: true })
+  it('should_stack_others_in_right_column_when_strip_right', () => {
+    const rects = computeFocusLayout(HD, 3, 1, { strip: 'right' })
     const main = rects[1]!
     const thumbs = [rects[0]!, rects[2]!]
-    expect(main.w).toBeGreaterThan(thumbs[0]!.w * 3)
     expect(isRatio(main.w, main.h)).toBe(true)
+    expect(main.w).toBeGreaterThan(thumbs[0]!.w * 3)
+    expect(main.x).toBeCloseTo(0, 3)
     for (const t of thumbs) {
       expect(isRatio(t.w, t.h)).toBe(true)
-      expect(t.y + t.h).toBeCloseTo(HD.height, 3)
-      expect(t.y).toBeGreaterThanOrEqual(main.y + main.h - 1e-6)
+      expect(t.x + t.w).toBeCloseTo(HD.width, 3)
+      expect(t.x).toBeGreaterThanOrEqual(main.x + main.w + 2 - 1e-6)
+      expect(t.y).toBeGreaterThanOrEqual(-1e-6)
+      expect(t.y + t.h).toBeLessThanOrEqual(HD.height + 1e-6)
     }
-    expect(thumbs[1]!.x).toBeGreaterThan(thumbs[0]!.x)
+    expect(thumbs[1]!.y).toBeGreaterThan(thumbs[0]!.y)
+    expect(thumbs[0]!.x).toBeCloseTo(thumbs[1]!.x)
   })
 
-  it('should_hide_others_when_strip_disabled', () => {
-    const rects = computeFocusLayout(HD, 3, 0, { strip: false })
+  it('should_stack_others_in_left_column_when_strip_left', () => {
+    const rects = computeFocusLayout(HD, 3, 0, { strip: 'left' })
+    const main = rects[0]!
+    const thumbs = [rects[1]!, rects[2]!]
+    for (const t of thumbs) expect(t.x).toBeCloseTo(0, 3)
+    expect(main.x).toBeGreaterThanOrEqual(thumbs[0]!.w + 2 - 1e-6)
+    expect(main.x + main.w).toBeLessThanOrEqual(HD.width + 1e-6)
+  })
+
+  it('should_mark_others_hidden_but_keep_real_size_when_strip_off', () => {
+    const rects = computeFocusLayout(HD, 3, 0, { strip: 'off' })
     expect(rects[0]).toEqual({ x: 0, y: 0, w: 1920, h: 1080 })
-    expect(rects[1]).toEqual(HIDDEN_RECT)
-    expect(rects[2]).toEqual(HIDDEN_RECT)
+    for (const t of [rects[1]!, rects[2]!]) {
+      expect(t.hidden).toBe(true)
+      expect(t.w).toBeGreaterThan(100)
+      expect(isRatio(t.w, t.h)).toBe(true)
+    }
+    expect(rects[0]!.hidden).toBeUndefined()
+    const visible = computeFocusLayout(HD, 3, 0, { strip: 'right' })
+    expect(visible.every((t) => !t.hidden)).toBe(true)
   })
 
-  it('should_shrink_thumbnails_when_too_many_for_width', () => {
-    const rects = computeFocusLayout({ width: 800, height: 450 }, 12, 0, { strip: true })
+  it('should_use_full_height_and_widen_column_on_ultrawide', () => {
+    const rects = computeFocusLayout(ULTRAWIDE, 3, 0, { strip: 'right' })
+    const main = rects[0]!
+    const thumb = rects[1]!
+    expect(main.h).toBeCloseTo(ULTRAWIDE.height, 3)
+    expect(main.x).toBeCloseTo(0, 3)
+    // toute la largeur restante va à la colonne : pas de gouttière entre le stream et les miniatures
+    expect(thumb.x).toBeCloseTo(main.w + 2, 3)
+    expect(thumb.w).toBeGreaterThan(480)
+  })
+
+  it('should_shrink_thumbnails_when_too_many_for_height', () => {
+    const rects = computeFocusLayout({ width: 800, height: 450 }, 12, 0, { strip: 'right' })
     const thumbs = rects.slice(1)
-    const total = thumbs.reduce((sum, t) => sum + t.w, 0) + 2 * (thumbs.length - 1)
-    expect(total).toBeLessThanOrEqual(800 + 1e-6)
-    expect(thumbs.every((t) => t.w > 0)).toBe(true)
+    const total = thumbs.reduce((sum, t) => sum + t.h, 0) + 2 * (thumbs.length - 1)
+    expect(total).toBeLessThanOrEqual(450 + 1e-6)
+    expect(thumbs.every((t) => t.w > 0 && t.x + t.w <= 800 + 1e-6)).toBe(true)
+    expect(rects[0]!.x + rects[0]!.w).toBeLessThanOrEqual(thumbs[0]!.x - 2 + 1e-6)
   })
 
   it('should_clamp_focused_index_when_out_of_range', () => {
-    const rects = computeFocusLayout(HD, 2, 7, { strip: true })
+    const rects = computeFocusLayout(HD, 2, 7, { strip: 'right' })
     expect(rects[1]!.w).toBeGreaterThan(rects[0]!.w)
   })
 })

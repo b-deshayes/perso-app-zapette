@@ -4,8 +4,8 @@
 TV. Pensé pour suivre ses streamers pendant le **ZEVENT** sans perdre un pixel : aucune barre permanente, les
 tuiles occupent tout l'écran.
 
-> 100 % statique (Vue 3 + Vite), hébergé sur GitHub Pages, aucun compte ni backend. L'état du mur vit dans
-> l'URL et le `localStorage` du navigateur.
+> 100 % statique (Vue 3 + Vite), hébergé sur Vercel, aucun compte ni backend. L'état du mur vit dans l'URL et le
+> `localStorage` du navigateur.
 
 ## Fonctionnalités
 
@@ -13,12 +13,12 @@ tuiles occupent tout l'écran.
 |---|---|
 | **Mur de streams** | Grille « multiviewer » : les tuiles 16/9 se répartissent pour maximiser la surface, quelle que soit la taille de la fenêtre. Jusqu'à 12 chaînes. |
 | **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou sur une tuile pour retirer. Flèches sur la tuile pour réordonner. |
-| **Focus** | Un stream en grand, les autres en **bandeau de miniatures** (toujours en direct, muettes) : un clic sur une miniature zappe. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bandeau repliable (`S`) : les autres lecteurs sont alors mis en pause pour économiser la bande passante. |
-| **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. |
+| **Focus** | Un stream en grand, les autres empilés dans une **colonne latérale** de miniatures (toujours en direct, muettes) : un clic sur une miniature zappe. Colonne à droite, à gauche, ou masquée (`S`) ; sur un écran large elle absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Colonne masquée : les autres lecteurs sont mis en pause pour économiser la bande passante. |
+| **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
 | **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut (épinglable avec `H`). |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
 | **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et le PC devient télécommande (voir ci-dessous). |
-| **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator`. |
+| **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
 | **Qualité adaptée** | Les miniatures demandent une qualité réduite (360p/480p) — inutile de décoder du 1080p dans 300 px, surtout pendant un cast. |
 
 Au premier lancement le mur contient `sylvainlyve`, `zerator` et `amixem`.
@@ -32,7 +32,7 @@ Au premier lancement le mur contient `sylvainlyve`, `zerator` et `amixem`.
 | `←` `→` | Stream précédent / suivant en focus |
 | `M` | Couper / remettre le son |
 | `F` | Plein écran navigateur |
-| `S` | Bandeau des autres streams (mode focus) |
+| `S` | Colonne des autres streams : droite → gauche → masquée |
 | `C` | Chat Twitch |
 | `A` ou `/` | Ajouter une chaîne |
 | `Suppr` | Retirer le stream en focus |
@@ -55,7 +55,7 @@ Deux façons, la première est intégrée à l'application :
    barre se cache toute seule.
 
 Le mirroring est fait par le PC : il décode les streams et encode la vidéo envoyée à la TV. Plus il y a de
-chaînes, plus ça pèse — le mode focus (les autres en miniatures basse qualité, ou bandeau replié) est le plus
+chaînes, plus ça pèse — le mode focus (les autres en miniatures basse qualité, ou colonne masquée) est le plus
 confortable pour un cast.
 
 ## Stack
@@ -80,22 +80,37 @@ npm run build     # vue-tsc + vite build
 ```
 
 L'embed Twitch exige que le domaine hôte soit déclaré (`parent`) : l'application utilise `location.hostname`,
-donc `localhost` en dev et `<user>.github.io` en production, sans configuration.
+donc `localhost` en dev et le domaine de déploiement en production, sans configuration. Il exige aussi HTTPS
+en production.
 
 ## Déploiement
 
-Push sur `main` → le workflow [`deploy.yml`](.github/workflows/deploy.yml) lance tests et build puis publie
-`dist/` sur GitHub Pages (source « GitHub Actions »). Le chemin de base (`/perso-app-zapette/`) est injecté via
-`VITE_BASE_PATH`.
+Site statique servi à la racine. Sur Vercel : preset **Vite**, commande `npm run build`, dossier `dist` — la
+détection automatique suffit, chaque push sur `main` déploie. Pour servir sous un sous-chemin, définir
+`VITE_BASE_PATH` (ex. `/zapette/`) au build.
+
+## Pièges Twitch (appris en route)
+
+- Le lecteur **refuse définitivement l'autoplay** s'il détecte qu'il est `visibility: hidden` / `display: none`
+  au chargement (« minimum requirements for autoplay were not met: style visibility »). Les tuiles ne sont donc
+  créées qu'une fois mesurées et visibles, et une tuile masquée est **rognée** (`clip-path`) et mise en pause,
+  jamais cachée au sens CSS.
+- Un `play()` ou `setMuted(false)` programmatique au `READY` court-circuite l'autoplay : le son demandé est
+  appliqué au `PLAYING`.
+- Un `setMuted(false)` sans geste utilisateur met la lecture en pause : le lecteur reste muet jusqu'au premier
+  clic / touche sur la page, sauf sur la TV (récepteur Presentation) où Chrome autorise l'autoplay sonore.
+- Le bruit console (`amazon-adsystem` bloqué par un bloqueur de pub, `attribution-reporting`, `accelerometer`,
+  `MaxListenersExceededWarning`, `Failed to load playlist` pour une chaîne hors ligne) vient du lecteur Twitch et
+  n'a pas d'effet.
 
 ## Architecture
 
 ```
 src/
-├── domain/          # Logique pure, testée : layout (grille / focus), parsing de chaîne, état URL,
-│                    # validation d'un snapshot, choix de qualité, protocole de cast
+├── domain/          # Logique pure, testée : layout (grille / focus + colonne), parsing de chaîne, état URL,
+│                    # validation d'un snapshot, choix de qualité, protocole de cast, modes de colonne
 ├── services/        # Chargement de l'embed Twitch, accès à l'API Presentation, localStorage
-├── stores/          # Pinia : streams (chaînes, son, focus, bandeau, chat)
+├── stores/          # Pinia : streams (chaînes, son, focus, colonne, chat)
 ├── composables/     # wall/ (layout, lecteur Twitch, persistance) · ui/ (barre auto-masquée, raccourcis,
 │                    # aide, toasts) · cast/ (contrôleur PC, récepteur TV)
 ├── components/      # layout/ (barre, pastilles) · wall/ (mur, tuile, tuile télécommande, chat, états vides)

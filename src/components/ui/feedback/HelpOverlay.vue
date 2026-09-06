@@ -11,7 +11,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ['← →', 'Stream précédent / suivant en focus'],
   ['M', 'Couper / remettre le son'],
   ['F', 'Plein écran navigateur'],
-  ['S', 'Bandeau des autres streams (mode focus)'],
+  ['S', 'Colonne des autres streams : droite → gauche → masquée (mode focus)'],
   ['C', 'Chat Twitch du stream en focus'],
   ['A ou /', 'Ajouter une chaîne'],
   ['Suppr', 'Retirer le stream en focus'],
@@ -58,7 +58,8 @@ const SHORTCUTS: Array<[string, string]> = [
             <h2 class="label-cond help__h">Souris</h2>
             <p class="help__p">
               La barre apparaît en approchant du bord haut. Survole une tuile pour le son, le focus, l'ordre et le
-              retrait. En focus, un clic sur une miniature zappe dessus.
+              retrait. En focus, les autres streams s'empilent dans une colonne sur le côté : un clic sur une
+              miniature zappe dessus.
             </p>
 
             <h2 class="label-cond help__h">Partager</h2>

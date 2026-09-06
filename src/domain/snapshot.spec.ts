@@ -20,9 +20,15 @@ describe('sanitizeSnapshot', () => {
         { name: 'amixem', muted: true },
       ],
       focused: 'amixem',
-      strip: true,
+      strip: 'right',
       chat: false,
     })
+  })
+
+  it('should_parse_strip_mode_including_legacy_boolean', () => {
+    expect(sanitizeSnapshot({ channels: [], strip: 'left' })?.strip).toBe('left')
+    expect(sanitizeSnapshot({ channels: [], strip: false })?.strip).toBe('off')
+    expect(sanitizeSnapshot({ channels: [], strip: true })?.strip).toBe('right')
   })
 
   it('should_drop_focus_when_channel_missing', () => {

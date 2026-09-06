@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Volume2, VolumeX, X } from 'lucide-vue-next'
 import IconButton from '@/components/ui/forms/IconButton.vue'
 import { useTwitchPlayer, type PlayerStatus } from '@/composables/wall/useTwitchPlayer'
-import { HIDDEN_RECT, type TileRect } from '@/domain/layout'
+import type { TileRect } from '@/domain/layout'
 import { useStreamsStore } from '@/stores/streams'
 import type { StreamChannel } from '@/types/Stream'
 
@@ -22,8 +22,9 @@ const props = defineProps<Props>()
 const store = useStreamsStore()
 const host = ref<HTMLElement | null>(null)
 
-const rect = computed(() => props.rect ?? HIDDEN_RECT)
-const hidden = computed(() => rect.value.w < 1)
+const rect = computed<TileRect>(() => props.rect ?? { x: 0, y: 0, w: 0, h: 0, hidden: true })
+/** Pas encore mesurée, ou rognée (colonne repliée) : le lecteur n'est pas créé / est en pause. */
+const hidden = computed(() => rect.value.hidden === true || rect.value.w < 1)
 const style = computed(() => ({
   transform: `translate(${rect.value.x}px, ${rect.value.y}px)`,
   width: `${rect.value.w}px`,
@@ -142,8 +143,18 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
+/*
+ * Masquage par rognage, jamais par visibility/display : Twitch désactive l'autoplay pour de bon
+ * s'il détecte un lecteur invisible « au sens du style ». La tuile passe aussi sous les autres.
+ */
 .tile--hidden {
-  visibility: hidden;
+  clip-path: inset(50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tile--focused {
+  z-index: 1;
 }
 
 .tile__player,

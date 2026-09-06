@@ -5,11 +5,11 @@ describe('cast-protocol', () => {
   it('should_roundtrip_state_message', () => {
     const encoded = encodeCastMessage({
       type: 'state',
-      payload: { channels: [{ name: 'zerator', muted: false }], focused: 'zerator', strip: true, chat: false },
+      payload: { channels: [{ name: 'zerator', muted: false }], focused: 'zerator', strip: 'right', chat: false },
     })
     expect(decodeCastMessage(encoded)).toEqual({
       type: 'state',
-      payload: { channels: [{ name: 'zerator', muted: false }], focused: 'zerator', strip: true, chat: false },
+      payload: { channels: [{ name: 'zerator', muted: false }], focused: 'zerator', strip: 'right', chat: false },
     })
   })
 

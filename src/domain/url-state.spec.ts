@@ -9,7 +9,7 @@ const snapshot: WallSnapshot = {
     { name: 'amixem', muted: true },
   ],
   focused: 'zerator',
-  strip: false,
+  strip: 'left',
   chat: true,
 }
 
@@ -19,13 +19,20 @@ describe('url-state', () => {
     expect(params.get('c')).toBe('sylvainlyve,zerator,amixem')
     expect(params.get('a')).toBe('zerator')
     expect(params.get('f')).toBe('zerator')
-    expect(params.get('strip')).toBe('0')
+    expect(params.get('strip')).toBe('left')
     expect(params.get('chat')).toBe('1')
     expect(decodeWallState(params)).toEqual(snapshot)
   })
 
+  it('should_omit_strip_when_default_and_accept_legacy_zero', () => {
+    expect(encodeWallState({ ...snapshot, strip: 'right' }).get('strip')).toBeNull()
+    expect(encodeWallState({ ...snapshot, strip: 'off' }).get('strip')).toBe('off')
+    expect(decodeWallState(new URLSearchParams('c=zerator&strip=0'))?.strip).toBe('off')
+    expect(decodeWallState(new URLSearchParams('c=zerator&strip=nimporte'))?.strip).toBe('right')
+  })
+
   it('should_encode_nothing_when_no_channel', () => {
-    const params = encodeWallState({ channels: [], focused: null, strip: true, chat: false })
+    const params = encodeWallState({ channels: [], focused: null, strip: 'right', chat: false })
     expect(params.toString()).toBe('')
   })
 
@@ -40,7 +47,7 @@ describe('url-state', () => {
       { name: 'zerator', muted: false },
       { name: 'amixem', muted: true },
     ])
-    expect(state?.strip).toBe(true)
+    expect(state?.strip).toBe('right')
     expect(state?.chat).toBe(false)
   })
 
