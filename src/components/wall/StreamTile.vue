@@ -14,7 +14,7 @@ interface Props {
   /** Survol, boutons. Faux sur la TV. */
   interactive: boolean
   focused: boolean
-  /** Miniature du bandeau (mode focus) : toute la surface sert à zapper. */
+  /** Miniature de la colonne (mode focus) : la vidéo sert à zapper, la légende est sous la vidéo. */
   thumbnail: boolean
 }
 
@@ -23,7 +23,7 @@ const store = useStreamsStore()
 const host = ref<HTMLElement | null>(null)
 
 const rect = computed<TileRect>(() => props.rect ?? { x: 0, y: 0, w: 0, h: 0, hidden: true })
-/** Pas encore mesurée, ou rognée (colonne repliée) : le lecteur n'est pas créé / est en pause. */
+/** Pas encore mesurée, ou rangée derrière le stream en focus (colonne repliée). */
 const hidden = computed(() => rect.value.hidden === true || rect.value.w < 1)
 const style = computed(() => ({
   transform: `translate(${rect.value.x}px, ${rect.value.y}px)`,
@@ -58,26 +58,29 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
       'tile--thumb': thumbnail,
       'tile--focused': focused,
       'tile--audible': !channel.muted,
-      'tile--offline': status === 'offline',
     }"
     :style="style"
     :aria-label="`Stream ${channel.name}`"
   >
     <div ref="host" class="tile__player" />
 
-    <!-- Miniature du bandeau : toute la surface zappe vers ce stream -->
+    <!-- Miniature : zone de clic invisible (opacité 0, donc ignorée par le test d'occlusion de Twitch) -->
     <button
       v-if="interactive && thumbnail"
       type="button"
       class="tile__hit"
       :title="`Zapper sur ${channel.name} (${index + 1})`"
       @click="store.focus(channel.name)"
-    >
-      <span class="tile__hit-idx">{{ index + 1 }}</span>
-      <span class="tile__hit-name">{{ channel.name }}</span>
-    </button>
+    />
 
-    <!-- Tuile normale : bandeau de contrôle révélé au survol -->
+    <!-- Miniature : légende sous la vidéo, jamais dessus -->
+    <div v-if="thumbnail" class="tile__caption">
+      <span class="tile__caption-idx">{{ index + 1 }}</span>
+      <span class="tile__caption-name">{{ channel.name }}</span>
+      <span class="tile__caption-status" :class="`is-${status}`">{{ statusLabel }}</span>
+    </div>
+
+    <!-- Tuile normale : bandeau de contrôle révélé au survol (invisible au repos) -->
     <div v-else-if="interactive" class="tile__overlay">
       <div class="tile__head">
         <span class="tile__idx">{{ index + 1 }}</span>
@@ -122,29 +125,29 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
       <Volume2 class="tile__unblock-icon" aria-hidden="true" />
       Activer le son
     </button>
-
-    <span v-if="!channel.muted" class="tile__audio" aria-hidden="true" />
   </article>
 </template>
 
 <style scoped>
 /*
- * Aucune animation d'opacité ni filtre sur la tuile : Twitch évalue la « style visibility » du
- * lecteur à des moments imprévisibles et coupe l'autoplay pour de bon s'il le trouve à opacité 0.
- * Seuls transform / taille / clip-path bougent (transitions dans StreamWall).
+ * Règle d'or : rien ne recouvre le lecteur au repos et aucun effet visuel sur ses ancêtres. Twitch
+ * refuse l'autoplay (« style visibility ») dès qu'un élément — même transparent — chevauche
+ * l'iframe, ou qu'un ancêtre porte opacité < 1, filtre ou clip-path. Ce qui se superpose est à
+ * opacité 0 tant que ce n'est pas survolé ; ce qui est permanent (légende, liseré) est hors de la
+ * vidéo (bandeau sous la vidéo, outline).
  */
 .tile {
   position: absolute;
   top: 0;
   left: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: #000;
-  will-change: transform;
 }
 
-/* Masquage par rognage, jamais par visibility/display, et la tuile passe sous les autres. */
+/* Rangée derrière le stream en focus : même rect, dessous, inerte. */
 .tile--hidden {
-  clip-path: inset(50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -153,7 +156,11 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
   z-index: 1;
 }
 
-.tile__player,
+.tile__player {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .tile__player :deep(iframe) {
   display: block;
   width: 100%;
@@ -161,32 +168,66 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
   border: 0;
 }
 
-/* Tally : liseré ambre sur ce qu'on entend */
-.tile--audible::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  box-shadow: inset 0 0 0 2px var(--color-tally-500);
+/* Tally : liseré ambre sur ce qu'on entend — un outline ne participe pas au test d'occlusion. */
+.tile--audible {
+  outline: 2px solid var(--color-tally-500);
+  outline-offset: -2px;
 }
 
-.tile__audio {
+/* ---------- Miniature ---------- */
+.tile__hit {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-tally-500);
-  box-shadow: 0 0 10px var(--color-tally-500);
-  pointer-events: none;
+  inset: 0 0 20px 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
 }
 
-.tile--thumb .tile__audio {
-  right: 5px;
-  bottom: 5px;
-  width: 6px;
-  height: 6px;
+.tile--thumb:hover {
+  outline: 2px solid var(--color-tally-500);
+  outline-offset: -2px;
+}
+
+.tile__caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--color-ink-900);
+  color: var(--color-ink-100);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tile__caption-idx {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--color-tally-500);
+}
+
+.tile__caption-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile__caption-status {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-400);
+}
+
+.tile__caption-status.is-live {
+  color: var(--color-live-500);
 }
 
 /* ---------- Bandeau de contrôle (survol) ---------- */
@@ -213,8 +254,7 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
   pointer-events: auto;
 }
 
-.tile__idx,
-.tile__hit-idx {
+.tile__idx {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -267,43 +307,6 @@ const statusLabel = computed(() => STATUS_LABEL[status.value])
 
 .tile__spacer {
   flex: 1;
-}
-
-/* ---------- Miniature : zone cliquable pleine surface ---------- */
-.tile__hit {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  padding: 6px;
-  border: 0;
-  background: linear-gradient(to top, rgba(8, 8, 10, 0.82), transparent 55%);
-  color: var(--color-ink-50);
-  cursor: pointer;
-  opacity: 0.9;
-  transition:
-    opacity 0.15s,
-    box-shadow 0.15s;
-}
-
-.tile__hit:hover {
-  opacity: 1;
-  box-shadow: inset 0 0 0 2px var(--color-tally-500);
-}
-
-.tile__hit-idx {
-  min-width: 18px;
-  height: 18px;
-  font-size: 12px;
-}
-
-.tile__hit-name {
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ---------- Autoplay bloqué : un clic pour le son ---------- */

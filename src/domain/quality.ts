@@ -1,11 +1,6 @@
 /** Une qualité telle que retournée par `player.getQualities()` (objet ou simple chaîne). */
 export type QualityLike = { group?: string; name?: string } | string
 
-export interface PickQualityOptions {
-  /** Tuile rognée (colonne masquée) : la plus basse qualité disponible, juste pour rester en lecture. */
-  minimal?: boolean
-}
-
 const AUTO = 'auto'
 
 function groupOf(quality: QualityLike): string {
@@ -33,12 +28,8 @@ export function targetHeightForWidth(width: number): number | null {
  * dans une miniature de 300 px, surtout quand le PC encode aussi le flux vers la Chromecast.
  * Retourne « auto » pour les grandes tuiles ou si la liste est inexploitable.
  */
-export function pickQuality(
-  qualities: QualityLike[] | undefined,
-  tileWidth: number,
-  options: PickQualityOptions = {},
-): string {
-  const target = options.minimal ? 0 : targetHeightForWidth(tileWidth)
+export function pickQuality(qualities: QualityLike[] | undefined, tileWidth: number): string {
+  const target = targetHeightForWidth(tileWidth)
   if (target === null || !qualities?.length) return AUTO
 
   const candidates = qualities

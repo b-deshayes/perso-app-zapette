@@ -57,7 +57,6 @@ const { rects, ready } = useWallLayout(container)
   transition:
     transform 0.32s var(--ease-panel),
     width 0.32s var(--ease-panel),
-    height 0.32s var(--ease-panel),
-    clip-path 0.32s var(--ease-panel);
+    height 0.32s var(--ease-panel);
 }
 </style>

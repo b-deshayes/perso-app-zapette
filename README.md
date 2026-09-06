@@ -91,11 +91,15 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 
 ## Pièges Twitch (appris en route)
 
-- Le lecteur **refuse définitivement l'autoplay** s'il détecte qu'il est `visibility: hidden` / `display: none`
-  ou à opacité nulle (« minimum requirements for autoplay were not met: style visibility »), et il évalue ça à
-  des moments imprévisibles (démarrage, changement de qualité). Donc : aucune animation d'opacité ni filtre sur
-  les tuiles, lecteur créé seulement une fois la tuile mesurée et visible, tuile masquée **rognée**
-  (`clip-path`) et passée en qualité minimale, jamais cachée au sens CSS.
+- Le lecteur **refuse l'autoplay** (« minimum requirements for autoplay were not met: style visibility ») quand
+  l'`isVisible` d'un IntersectionObserver v2 est faux, c'est-à-dire dès qu'un élément de la page **chevauche
+  l'iframe** (même transparent, même en `pointer-events: none` ; seule l'opacité 0 est ignorée) ou qu'un
+  ancêtre porte une opacité < 1, un filtre, un `clip-path`, une transformation autre qu'une translation 2D.
+  Il évalue ça au démarrage et à chaque relance (changement de qualité, fin de pub). L'enforcement est
+  actif sur les domaines publics, pas sur `localhost`. Donc : rien ne recouvre un lecteur au repos — bandeau de
+  contrôle et zone de survol de la barre à opacité 0 tant qu'ils ne sont pas survolés, légende des miniatures
+  **sous** la vidéo, liseré ambre en `outline`, tuiles masquées rangées derrière le stream en focus, aucune
+  animation d'opacité, aucun `clip-path`.
 - Ne jamais mettre un lecteur en pause soi-même : la reprise par `play()` est souvent refusée. Les miniatures
   restent en direct, en basse qualité. Si un lecteur est quand même trouvé en pause après un changement de
   disposition, il est relancé une ou deux fois.

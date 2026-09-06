@@ -12,9 +12,9 @@ export interface TileRect {
   w: number
   h: number
   /**
-   * Tuile masquée (colonne repliée) : elle garde une taille réelle et reste « visible » au sens CSS,
-   * seulement rognée et mise en pause — Twitch refuse définitivement l'autoplay d'un lecteur qui a
-   * été `visibility: hidden` ou `display: none`.
+   * Tuile masquée (colonne repliée) : elle prend la place du stream principal, derrière lui, et
+   * continue de jouer. Jamais de visibility/display/clip-path : Twitch coupe l'autoplay d'un
+   * lecteur qu'il juge invisible.
    */
   hidden?: boolean
 }
@@ -27,6 +27,8 @@ export interface FocusLayoutOptions {
 
 export const TILE_RATIO = 16 / 9
 export const TILE_GAP = 2
+/** Bandeau de légende sous chaque miniature (hors de la vidéo : rien ne doit recouvrir un lecteur). */
+export const THUMB_CAPTION = 20
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -78,8 +80,8 @@ export function computeGridLayout(size: Size, count: number, gap: number = TILE_
 
 /**
  * Mode focus : un stream aussi grand que possible, les autres empilés dans une colonne latérale
- * (à droite ou à gauche). Colonne repliée : le stream prend tout, les autres gardent leur place
- * de colonne mais sont marqués `hidden` (rognés et en pause par la vue).
+ * (à droite ou à gauche), chaque miniature portant sa légende sous la vidéo. Colonne repliée :
+ * le stream prend tout, les autres se rangent derrière lui (`hidden`) sans cesser de jouer.
  *
  * La colonne part de ~20 % de la largeur, ne dépasse jamais la hauteur disponible pour N-1
  * miniatures, et récupère toute la largeur que le stream principal ne peut pas utiliser quand
@@ -100,18 +102,20 @@ export function computeFocusLayout(
 
   if (others === 0) return [fitTile(0, 0, size.width, size.height)]
 
+  if (collapsed) {
+    const main = fitTile(0, 0, size.width, size.height)
+    return Array.from({ length: count }, (_, i) => (i === index ? main : { ...main, hidden: true }))
+  }
+
   const columnGaps = gap * (others - 1)
-  const maxColumnByHeight = ((size.height - columnGaps) / others) * TILE_RATIO
+  const maxColumnByHeight = Math.max(0, (size.height - columnGaps) / others - THUMB_CAPTION) * TILE_RATIO
   let column = Math.min(clamp(size.width * 0.2, 160, 480), maxColumnByHeight, size.width * 0.5)
   const mainW = Math.min(size.width - column - gap, size.height * TILE_RATIO)
   const leftover = size.width - gap - mainW - column
   if (leftover > 0) column = Math.min(column + leftover, maxColumnByHeight, size.width * 0.35)
 
-  const main = collapsed
-    ? fitTile(0, 0, size.width, size.height)
-    : fitTile(side === 'right' ? 0 : column + gap, 0, size.width - column - gap, size.height)
-
-  const thumbH = column / TILE_RATIO
+  const main = fitTile(side === 'right' ? 0 : column + gap, 0, size.width - column - gap, size.height)
+  const thumbH = column / TILE_RATIO + THUMB_CAPTION
   const columnX = side === 'right' ? size.width - column : 0
   let y = (size.height - (others * thumbH + columnGaps)) / 2
 
@@ -121,9 +125,7 @@ export function computeFocusLayout(
       rects.push(main)
       continue
     }
-    const rect: TileRect = { x: columnX, y, w: column, h: thumbH }
-    if (collapsed) rect.hidden = true
-    rects.push(rect)
+    rects.push({ x: columnX, y, w: column, h: thumbH })
     y += thumbH + gap
   }
   return rects

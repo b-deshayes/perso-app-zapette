@@ -39,9 +39,4 @@ describe('quality', () => {
   it('should_fallback_to_best_available_when_nothing_sufficient', () => {
     expect(pickQuality(['160p30', '360p30'], 900)).toBe('360p30')
   })
-
-  it('should_pick_lowest_when_minimal', () => {
-    expect(pickQuality(QUALITIES, 1500, { minimal: true })).toBe('160p30')
-    expect(pickQuality(['auto'], 300, { minimal: true })).toBe('auto')
-  })
 })

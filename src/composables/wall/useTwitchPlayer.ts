@@ -18,7 +18,7 @@ export type PlayerStatus = 'loading' | 'live' | 'offline' | 'paused' | 'error'
 export interface UseTwitchPlayerOptions {
   channel: string
   muted: MaybeRefOrGetter<boolean>
-  /** Tuile rognée (colonne masquée) : le lecteur continue en qualité minimale, jamais en pause. */
+  /** Tuile rangée derrière le stream en focus (colonne masquée) : le lecteur continue, jamais en pause. */
   hidden: MaybeRefOrGetter<boolean>
   /** Largeur affichée, pour adapter la qualité demandée. */
   width: MaybeRefOrGetter<number>
@@ -105,9 +105,11 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       p.setMuted(muted)
     })
 
+  /** Un changement de qualité relance la lecture, donc repasse par le contrôle d'autoplay de Twitch : jamais sur une tuile rangée derrière une autre (occluse). */
   const applyQuality = () =>
     withPlayer((p) => {
-      const wanted = pickQuality(p.getQualities(), toValue(options.width), { minimal: toValue(options.hidden) })
+      if (toValue(options.hidden)) return
+      const wanted = pickQuality(p.getQualities(), toValue(options.width))
       if (wanted !== p.getQuality()) p.setQuality(wanted)
     })
 

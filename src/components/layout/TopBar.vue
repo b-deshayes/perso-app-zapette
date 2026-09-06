@@ -70,7 +70,7 @@ defineExpose({ focusInput })
 <template>
   <header
     class="topzone"
-    :class="{ 'is-visible': visible }"
+    :class="{ 'is-visible': visible, 'is-pinned': pinned }"
     @mouseenter="onEnter"
     @mouseleave="onLeave"
     @focusin="onFocusIn"
@@ -136,6 +136,11 @@ defineExpose({ focusInput })
 </template>
 
 <style scoped>
+/*
+ * Masquée, la zone reste survolable mais à opacité 0 : un élément qui chevauche un lecteur Twitch
+ * (même transparent) lui fait refuser l'autoplay, sauf s'il est à opacité 0. Épinglée, la barre
+ * prend sa place dans le flux au-dessus du mur au lieu de le recouvrir.
+ */
 .topzone {
   position: fixed;
   top: 0;
@@ -143,12 +148,24 @@ defineExpose({ focusInput })
   right: 0;
   z-index: 40;
   padding-bottom: 14px;
+  opacity: 0;
   transform: translateY(calc(-100% + 14px));
-  transition: transform 0.28s var(--ease-panel);
+  transition:
+    transform 0.28s var(--ease-panel),
+    opacity 0.2s;
 }
 
 .topzone.is-visible {
+  opacity: 1;
   transform: translateY(0);
+}
+
+.topzone.is-pinned {
+  position: relative;
+  padding-bottom: 0;
+  opacity: 1;
+  transform: none;
+  transition: none;
 }
 
 .topzone__handle {
@@ -159,19 +176,13 @@ defineExpose({ focusInput })
   height: 3px;
   margin-left: -32px;
   border-radius: 2px;
-  background: var(--color-ink-600);
-  opacity: 0.9;
-  transition:
-    opacity 0.2s,
-    background 0.2s;
-}
-
-.topzone:hover .topzone__handle {
   background: var(--color-tally-500);
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.topzone.is-visible .topzone__handle {
-  opacity: 0;
+.topzone.is-pinned .topzone__handle {
+  display: none;
 }
 
 .bar {

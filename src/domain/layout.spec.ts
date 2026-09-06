@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { computeFocusLayout, computeGridLayout, TILE_RATIO } from './layout'
+import { computeFocusLayout, computeGridLayout, THUMB_CAPTION, TILE_RATIO } from './layout'
 
 const HD = { width: 1920, height: 1080 }
 const ULTRAWIDE = { width: 3440, height: 1440 }
 
 function isRatio(w: number, h: number): boolean {
   return Math.abs(w / h - TILE_RATIO) < 1e-6
+}
+
+/** Une miniature = vidéo 16/9 + bandeau de légende. */
+function isThumb(w: number, h: number): boolean {
+  return isRatio(w, h - THUMB_CAPTION)
 }
 
 describe('computeGridLayout', () => {
@@ -77,11 +82,12 @@ describe('computeFocusLayout', () => {
     expect(main.w).toBeGreaterThan(thumbs[0]!.w * 3)
     expect(main.x).toBeCloseTo(0, 3)
     for (const t of thumbs) {
-      expect(isRatio(t.w, t.h)).toBe(true)
+      expect(isThumb(t.w, t.h)).toBe(true)
       expect(t.x + t.w).toBeCloseTo(HD.width, 3)
       expect(t.x).toBeGreaterThanOrEqual(main.x + main.w + 2 - 1e-6)
       expect(t.y).toBeGreaterThanOrEqual(-1e-6)
       expect(t.y + t.h).toBeLessThanOrEqual(HD.height + 1e-6)
+      expect(t.hidden).toBeUndefined()
     }
     expect(thumbs[1]!.y).toBeGreaterThan(thumbs[0]!.y)
     expect(thumbs[0]!.x).toBeCloseTo(thumbs[1]!.x)
@@ -96,17 +102,12 @@ describe('computeFocusLayout', () => {
     expect(main.x + main.w).toBeLessThanOrEqual(HD.width + 1e-6)
   })
 
-  it('should_mark_others_hidden_but_keep_real_size_when_strip_off', () => {
+  it('should_park_others_behind_main_when_strip_off', () => {
     const rects = computeFocusLayout(HD, 3, 0, { strip: 'off' })
-    expect(rects[0]).toEqual({ x: 0, y: 0, w: 1920, h: 1080 })
-    for (const t of [rects[1]!, rects[2]!]) {
-      expect(t.hidden).toBe(true)
-      expect(t.w).toBeGreaterThan(100)
-      expect(isRatio(t.w, t.h)).toBe(true)
-    }
-    expect(rects[0]!.hidden).toBeUndefined()
-    const visible = computeFocusLayout(HD, 3, 0, { strip: 'right' })
-    expect(visible.every((t) => !t.hidden)).toBe(true)
+    const main = { x: 0, y: 0, w: 1920, h: 1080 }
+    expect(rects[0]).toEqual(main)
+    expect(rects[1]).toEqual({ ...main, hidden: true })
+    expect(rects[2]).toEqual({ ...main, hidden: true })
   })
 
   it('should_use_full_height_and_widen_column_on_ultrawide', () => {
