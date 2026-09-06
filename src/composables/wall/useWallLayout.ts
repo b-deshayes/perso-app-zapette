@@ -1,10 +1,15 @@
-import { computed, onMounted, ref, watch, type Ref } from 'vue'
+import { computed, onMounted, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { computeFocusLayout, computeGridLayout, type Size, type TileRect } from '@/domain/layout'
 import { useStreamsStore } from '@/stores/streams'
 
+export interface WallLayoutOptions {
+  /** Une seule tuile plein cadre (la TV en mode focus) au lieu du mur complet. */
+  solo?: MaybeRefOrGetter<boolean>
+}
+
 /** Rectangles des tuiles, recalculés à chaque redimensionnement du conteneur ou changement d'état. */
-export function useWallLayout(container: Ref<HTMLElement | null>) {
+export function useWallLayout(container: Ref<HTMLElement | null>, options: WallLayoutOptions = {}) {
   const store = useStreamsStore()
   const size = ref<Size>({ width: 0, height: 0 })
 
@@ -28,13 +33,14 @@ export function useWallLayout(container: Ref<HTMLElement | null>) {
   })
 
   const rects = computed<TileRect[]>(() => {
+    if (toValue(options.solo)) return computeGridLayout(size.value, 1)
     if (store.focusedIndex >= 0) {
       return computeFocusLayout(size.value, store.count, store.focusedIndex, { strip: store.strip })
     }
     return computeGridLayout(size.value, store.count)
   })
 
-  /** Vrai une frame après la première mesure : évite d'animer les tuiles depuis un rect nul. */
+  /** Vrai une frame après la première mesure. */
   const ready = ref(false)
   const stop = watch(
     () => size.value.width,

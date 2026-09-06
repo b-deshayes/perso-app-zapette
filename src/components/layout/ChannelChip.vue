@@ -115,13 +115,6 @@ const title = computed(() => {
   width: 13px;
   height: 13px;
   color: var(--color-tally-400);
-  animation: hot-blink 1.2s ease-in-out infinite;
-}
-
-@keyframes hot-blink {
-  50% {
-    opacity: 0.35;
-  }
 }
 
 .chip__dot {

@@ -377,10 +377,9 @@ function onPlayerClick() {
 .tile__delta-icon {
   width: 12px;
   height: 12px;
-  animation: hot-blink 1.2s ease-in-out infinite;
 }
 
-/* Pic en cours : la barre vire à l'ambre (fond seulement, aucun débordement sur la vidéo). */
+/* Pic en cours : la barre vire à l'ambre, sans clignoter (fond seulement, rien sur la vidéo). */
 .tile--hot .tile__bar {
   background: color-mix(in srgb, var(--color-tally-500) 26%, var(--color-ink-900));
 }
@@ -388,12 +387,6 @@ function onPlayerClick() {
 .tile--hot .tile__idx {
   background: var(--color-tally-500);
   color: var(--color-ink-950);
-}
-
-@keyframes hot-blink {
-  50% {
-    opacity: 0.35;
-  }
 }
 
 /* Boutons discrets au repos, nets au survol de la tuile ou à la navigation clavier. */

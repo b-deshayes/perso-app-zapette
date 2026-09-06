@@ -58,8 +58,9 @@ const SHORTCUTS: Array<[string, string]> = [
             <h2 class="label-cond help__h">Sur la TV · Chromecast</h2>
             <ol class="help__steps">
               <li>
-                <strong>Bouton Cast</strong> dans la barre → choisir la Chromecast. Le mur s'affiche sur la TV et reste
-                affiché ici, son coupé localement : focus, son, ajout et retrait de chaînes se pilotent depuis le PC.
+                <strong>Bouton Cast</strong> dans la barre → choisir la Chromecast. La TV montre la grille telle
+                quelle ; en mode focus, elle n'affiche que le stream en focus, plein écran. Tout reste affiché ici,
+                son coupé localement : focus, son, ajout et retrait de chaînes se pilotent depuis le PC.
               </li>
               <li>
                 Sinon, dans Chrome : menu <span class="kbd">⋮</span> → <strong>Caster…</strong> → source
@@ -78,8 +79,8 @@ const SHORTCUTS: Array<[string, string]> = [
             <p class="help__p">
               La barre de chaque tuile affiche les spectateurs (Twitch, toutes les 30 s) et la variation par rapport
               aux 15 dernières minutes. Un <strong>pic</strong> (au moins +25 % et +300 spectateurs) passe la barre
-              en ambre et un message le signale. L'historique reste dans ce navigateur (3 h), même après un
-              rechargement.
+              de la tuile en ambre ; si la barre du haut est visible, un message le signale aussi. L'historique
+              reste dans ce navigateur (3 h), même après un rechargement.
             </p>
 
             <h2 class="label-cond help__h">Un stream en pause ?</h2>

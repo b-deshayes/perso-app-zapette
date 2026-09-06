@@ -24,11 +24,15 @@ export function useToast() {
     toast.value = null
   }
 
-  function show(message: string, kind: ToastKind = 'info', durationMs = 2800): void {
+  /**
+   * `reveal` (défaut) : la barre se montre le temps du message si elle n'est pas épinglée — pour une
+   * réponse à une action. Faux pour une notification passive (pic de spectateurs) : elle n'apparaît que
+   * si la barre est déjà visible, sans faire bouger le mur.
+   */
+  function show(message: string, kind: ToastKind = 'info', durationMs = 2800, { reveal = true } = {}): void {
     dismiss()
     toast.value = { id: nextId++, message, kind }
-    // La barre se montre le temps du message si elle n'est pas épinglée.
-    bar.reveal(durationMs + 400)
+    if (reveal) bar.reveal(durationMs + 400)
     timer = window.setTimeout(dismiss, durationMs)
   }
 

@@ -15,12 +15,12 @@ en pause).
 | **Mur de streams** | Grille « multiviewer » : les tuiles 16/9 se répartissent pour maximiser la surface, quelle que soit la taille de la fenêtre. Jusqu'à 12 chaînes. |
 | **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou dans la barre de la tuile pour retirer ; flèches dans la barre pour réordonner. |
 | **Barre de tuile** | Au-dessus de chaque vidéo, 24 px : numéro, nom (titre du stream en infobulle), état (live, hors ligne, pause), spectateurs. Au survol : son, focus, ordre, retrait. Un stream que Twitch a mis en pause affiche **Reprendre**. |
-| **Spectateurs et pics** | Le nombre de spectateurs de chaque chaîne (Twitch, toutes les 30 s) et sa variation par rapport à la médiane des 15 dernières minutes. Un **pic** (au moins +25 % et +300 spectateurs) passe la barre de la tuile et la pastille en ambre, et un message le signale une fois (10 min de répit par chaîne). L'historique (3 h) est gardé dans le navigateur : la détection repart avec sa référence après un rechargement. |
+| **Spectateurs et pics** | Le nombre de spectateurs de chaque chaîne (Twitch, toutes les 30 s) et sa variation par rapport à la médiane des 15 dernières minutes. Un **pic** (au moins +25 % et +300 spectateurs) passe la barre de la tuile et la pastille en ambre, sans clignoter ; si la barre du haut est visible, un message le signale une fois (10 min de répit par chaîne) — jamais en faisant bouger le mur. L'historique (3 h) est gardé dans le navigateur : la détection repart avec sa référence après un rechargement. |
 | **Focus** | Un stream en grand, les autres en **miniatures sur le côté** (toujours en direct, muettes) : un clic sur une miniature zappe. Les miniatures font au moins 300 px de large (en dessous, Twitch ne les lit pas) : quand une colonne ne suffit pas en hauteur, le bloc passe à 2 ou 3 colonnes. Bloc à droite, à gauche, ou masqué (`S`) ; sur un écran large il absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bloc masqué : les autres lecteurs sont rangés derrière le stream principal ; Twitch les met en pause tant qu'ils y sont, ils repartent quand on zappe dessus. |
 | **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
 | **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut et **pousse le mur** vers le bas plutôt que de le recouvrir (épinglable avec `H`). Les messages (chaîne inconnue, cast…) s'affichent dans cette barre, jamais sur le mur. |
 | **Chat** | `C` ouvre le chat Twitch du stream en focus dans un panneau latéral. |
-| **Chromecast** | Bouton **Cast** : le mur s'affiche sur la TV et reste affiché sur le PC, qui pilote (voir ci-dessous). |
+| **Chromecast** | Bouton **Cast** : la TV montre la grille telle quelle, ou, en mode focus, uniquement le stream en focus plein écran. Tout reste affiché sur le PC, qui pilote (voir ci-dessous). |
 | **Partage** | L'URL contient chaînes, son et focus : `?c=sylvainlyve,zerator,amixem&a=zerator&f=zerator&strip=left`. |
 | **Démarrage échelonné** | Les lecteurs démarrent l'un après l'autre (un toutes les 0,7 s) et restent en qualité auto : huit lecteurs lancés d'un coup, ou une qualité forcée, saturent la connexion et figent l'image. |
 
@@ -52,6 +52,8 @@ Deux façons, la première est intégrée à l'application :
 
 1. **Bouton Cast (API Presentation, Chrome / Edge).** La page s'ouvre en mode *récepteur* (`?receiver=1`, sans
    interface) sur la Chromecast : Chrome la rend hors écran et la diffuse (mirroring), le son part sur la TV.
+   En grille, la TV montre le mur tel quel ; en focus, elle n'affiche que le stream en focus (un seul lecteur,
+   plus léger pour le PC qui rend cette page).
    Les streams restent affichés sur le PC (son coupé localement, il joue sur la TV) et tout se pilote depuis
    le PC : focus, son, ajout, retrait, ordre — chaque changement est poussé à la TV en temps réel. Le bouton arrête la diffusion. Après un rechargement de la
    page PC, la télécommande se reconnecte toute seule à la diffusion en cours.

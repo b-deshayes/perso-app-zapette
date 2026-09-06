@@ -34,7 +34,13 @@ function createViewerCounts() {
       if (t - (lastAlert[login] ?? 0) < ALERT_COOLDOWN_MS) continue
       lastAlert[login] = t
       const name = infos.value[login]?.displayName ?? login
-      toast.show(`Pic de spectateurs sur ${name} : ${formatViewers(trend.viewers)} (${formatDelta(trend.delta)})`, 'info', 6000)
+      // Notification passive : visible seulement si la barre du haut l'est déjà, le mur ne bouge pas.
+      toast.show(
+        `Pic de spectateurs sur ${name} : ${formatViewers(trend.viewers)} (${formatDelta(trend.delta)})`,
+        'info',
+        6000,
+        { reveal: false },
+      )
     }
   }
 
