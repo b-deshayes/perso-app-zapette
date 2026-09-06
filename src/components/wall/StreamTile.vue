@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Play, Volume2, VolumeX, X } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Eye, Flame, Maximize2, Minimize2, Play, Volume2, VolumeX, X } from 'lucide-vue-next'
 import IconButton from '@/components/ui/forms/IconButton.vue'
 import { useCastState } from '@/composables/cast/useCastSender'
 import { useTwitchPlayer, type PlayerStatus } from '@/composables/wall/useTwitchPlayer'
+import { useViewerCounts } from '@/composables/wall/useViewerCounts'
 import { TILE_BAR, type TileRect } from '@/domain/layout'
+import { formatDelta, formatViewers } from '@/domain/viewers'
 import { useStreamsStore } from '@/stores/streams'
 import type { StreamChannel } from '@/types/Stream'
 
@@ -60,6 +62,21 @@ const focusLabel = computed(() => {
   return props.thumbnail ? 'Zapper sur ce stream' : 'Focus : plein cadre, les autres en sourdine'
 })
 
+/** Spectateurs (Twitch, toutes les 30 s), variation sur 15 min et pic en cours. */
+const { trendFor, infoFor } = useViewerCounts()
+const trend = computed(() => trendFor(props.channel.name))
+const streamTitle = computed(() => {
+  const info = infoFor(props.channel.name)
+  if (!info?.title) return undefined
+  return info.game ? `${info.title} — ${info.game}` : info.title
+})
+const viewersTitle = computed(() =>
+  trend.value.viewers === null ? undefined : `${trend.value.viewers.toLocaleString('fr-FR')} spectateurs`,
+)
+const deltaTitle = computed(() =>
+  trend.value.hot ? 'Pic de spectateurs par rapport aux 15 dernières minutes' : 'Variation sur les 15 dernières minutes',
+)
+
 function onPlayerClick() {
   if (zappable.value) store.focus(props.channel.name)
 }
@@ -73,14 +90,26 @@ function onPlayerClick() {
       'tile--thumb': thumbnail,
       'tile--focused': focused,
       'tile--audible': !channel.muted,
+      'tile--hot': trend.hot,
     }"
     :style="style"
     :aria-label="`Stream ${channel.name}`"
   >
-    <!-- Barre AU-DESSUS de la vidéo, jamais dessus : nom, état, et au survol les boutons -->
+    <!-- Barre AU-DESSUS de la vidéo, jamais dessus : nom, état, spectateurs, et au survol les boutons -->
     <div class="tile__bar">
       <span class="tile__idx">{{ index + 1 }}</span>
-      <span class="tile__name">{{ channel.name }}</span>
+      <span class="tile__name" :title="streamTitle">{{ channel.name }}</span>
+      <span v-if="trend.viewers !== null" class="tile__viewers" :title="viewersTitle">
+        <Eye class="tile__viewers-icon" aria-hidden="true" />{{ formatViewers(trend.viewers) }}
+      </span>
+      <span
+        v-if="trend.delta !== null"
+        class="tile__delta"
+        :class="{ 'is-hot': trend.hot, 'is-up': trend.delta > 0.02, 'is-down': trend.delta < -0.02 }"
+        :title="deltaTitle"
+      >
+        <Flame v-if="trend.hot" class="tile__delta-icon" aria-hidden="true" />{{ formatDelta(trend.delta) }}
+      </span>
       <button
         v-if="interactive && status === 'paused'"
         type="button"
@@ -305,6 +334,68 @@ function onPlayerClick() {
   flex: 1 1 auto;
 }
 
+/* ---------- Spectateurs et pic ---------- */
+.tile__viewers {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  color: var(--color-ink-200);
+}
+
+.tile__viewers-icon {
+  width: 11px;
+  height: 11px;
+  color: var(--color-ink-400);
+}
+
+.tile__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-400);
+}
+
+.tile__delta.is-up {
+  color: var(--color-ink-200);
+}
+
+.tile__delta.is-down {
+  color: var(--color-ink-500);
+}
+
+.tile__delta.is-hot {
+  color: var(--color-tally-400);
+  font-weight: 700;
+}
+
+.tile__delta-icon {
+  width: 12px;
+  height: 12px;
+  animation: hot-blink 1.2s ease-in-out infinite;
+}
+
+/* Pic en cours : la barre vire à l'ambre (fond seulement, aucun débordement sur la vidéo). */
+.tile--hot .tile__bar {
+  background: color-mix(in srgb, var(--color-tally-500) 26%, var(--color-ink-900));
+}
+
+.tile--hot .tile__idx {
+  background: var(--color-tally-500);
+  color: var(--color-ink-950);
+}
+
+@keyframes hot-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 /* Boutons discrets au repos, nets au survol de la tuile ou à la navigation clavier. */
 .tile__actions {
   display: flex;
@@ -318,6 +409,12 @@ function onPlayerClick() {
 .tile:hover .tile__actions,
 .tile:has(:focus-visible) .tile__actions {
   opacity: 1;
+}
+
+/* Au survol, l'état et la variation laissent la place aux boutons (les miniatures sont étroites). */
+.tile:hover .tile__status,
+.tile:hover .tile__delta {
+  display: none;
 }
 
 /* ---------- Autoplay bloqué : un clic pour le son (le lecteur ne joue pas, rien à occulter) ---------- */

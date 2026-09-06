@@ -10,6 +10,7 @@ import { useCastReceiver } from '@/composables/cast/useCastReceiver'
 import { useCastSender } from '@/composables/cast/useCastSender'
 import { useAutoHideBar } from '@/composables/ui/useAutoHideBar'
 import { useKeyboardShortcuts } from '@/composables/ui/useKeyboardShortcuts'
+import { useViewerCounts } from '@/composables/wall/useViewerCounts'
 import { useWallPersistence } from '@/composables/wall/useWallPersistence'
 import { isReceiverMode } from '@/domain/url-state'
 import { useStreamsStore } from '@/stores/streams'
@@ -21,6 +22,8 @@ const topBar = ref<InstanceType<typeof TopBar> | null>(null)
 const { toggle: toggleFullscreen } = useFullscreen(document.documentElement)
 /** Barre du haut non épinglée : quand elle se montre, le mur glisse vers le bas au lieu d'être recouvert. */
 const bar = useAutoHideBar()
+// Spectateurs de chaque chaîne (sondage Twitch), sur le PC comme sur la TV.
+useViewerCounts()
 
 if (receiver) {
   useCastReceiver()

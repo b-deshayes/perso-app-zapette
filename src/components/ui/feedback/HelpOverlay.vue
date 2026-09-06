@@ -74,6 +74,14 @@ const SHORTCUTS: Array<[string, string]> = [
               en miniatures sur le côté : un clic sur une miniature zappe dessus.
             </p>
 
+            <h2 class="label-cond help__h">Spectateurs et pics</h2>
+            <p class="help__p">
+              La barre de chaque tuile affiche les spectateurs (Twitch, toutes les 30 s) et la variation par rapport
+              aux 15 dernières minutes. Un <strong>pic</strong> (au moins +25 % et +300 spectateurs) passe la barre
+              en ambre et un message le signale. L'historique reste dans ce navigateur (3 h), même après un
+              rechargement.
+            </p>
+
             <h2 class="label-cond help__h">Un stream en pause ?</h2>
             <p class="help__p">
               Twitch met en pause un stream dès que quelque chose le recouvre (un autre onglet par-dessus, une

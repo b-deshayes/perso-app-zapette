@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { X } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Flame, X } from 'lucide-vue-next'
+import { useViewerCounts } from '@/composables/wall/useViewerCounts'
+import { formatDelta, formatViewers } from '@/domain/viewers'
 import { useStreamsStore } from '@/stores/streams'
 import type { StreamChannel } from '@/types/Stream'
 
@@ -8,24 +11,30 @@ interface Props {
   index: number
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const store = useStreamsStore()
+const { trendFor } = useViewerCounts()
+const trend = computed(() => trendFor(props.channel.name))
+const title = computed(() => {
+  const action = store.focused === props.channel.name ? 'Retour à la grille' : `Focus ${props.channel.name}`
+  const viewers =
+    trend.value.viewers === null ? '' : ` · ${trend.value.viewers.toLocaleString('fr-FR')} spectateurs`
+  const delta = trend.value.delta === null ? '' : ` (${formatDelta(trend.value.delta)} sur 15 min)`
+  return `${action} (${props.index + 1})${viewers}${delta}`
+})
 </script>
 
 <template>
   <div
     class="chip"
-    :class="{ 'is-focused': store.focused === channel.name, 'is-audible': !channel.muted }"
+    :class="{ 'is-focused': store.focused === channel.name, 'is-audible': !channel.muted, 'is-hot': trend.hot }"
     role="listitem"
   >
-    <button
-      type="button"
-      class="chip__main"
-      :title="`${store.focused === channel.name ? 'Retour à la grille' : `Focus ${channel.name}`} (${index + 1})`"
-      @click="store.toggleFocus(channel.name)"
-    >
+    <button type="button" class="chip__main" :title="title" @click="store.toggleFocus(channel.name)">
       <span class="chip__idx">{{ index + 1 }}</span>
       <span class="chip__name">{{ channel.name }}</span>
+      <span v-if="trend.viewers !== null" class="chip__viewers">{{ formatViewers(trend.viewers) }}</span>
+      <Flame v-if="trend.hot" class="chip__hot" aria-label="Pic de spectateurs" />
       <span class="chip__dot" aria-hidden="true" />
     </button>
     <button
@@ -64,6 +73,10 @@ const store = useStreamsStore()
   color: var(--color-ink-50);
 }
 
+.chip.is-hot {
+  background: color-mix(in srgb, var(--color-tally-500) 22%, var(--color-ink-800));
+}
+
 .chip__main {
   display: inline-flex;
   align-items: center;
@@ -88,6 +101,27 @@ const store = useStreamsStore()
 .chip__name {
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.chip__viewers {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-300);
+}
+
+.chip__hot {
+  width: 13px;
+  height: 13px;
+  color: var(--color-tally-400);
+  animation: hot-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes hot-blink {
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .chip__dot {

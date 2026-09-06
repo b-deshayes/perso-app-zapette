@@ -5,8 +5,8 @@ TV. Pensé pour suivre ses streamers pendant le **ZEVENT** sans perdre un pixel 
 les tuiles occupent tout l'écran, et rien n'est jamais affiché par-dessus une vidéo (Twitch mettrait le stream
 en pause).
 
-> 100 % statique (Vue 3 + Vite), hébergé sur Vercel, aucun compte ni backend. L'état du mur vit dans l'URL et le
-> `localStorage` du navigateur.
+> 100 % statique (Vue 3 + Vite), hébergé sur Vercel, aucun compte ni backend. L'état du mur et l'historique des
+> spectateurs vivent dans l'URL et le `localStorage` du navigateur.
 
 ## Fonctionnalités
 
@@ -14,7 +14,8 @@ en pause).
 |---|---|
 | **Mur de streams** | Grille « multiviewer » : les tuiles 16/9 se répartissent pour maximiser la surface, quelle que soit la taille de la fenêtre. Jusqu'à 12 chaînes. |
 | **Ajouter / retirer** | Barre du haut (nom de chaîne ou URL Twitch, `Entrée`). Croix sur une pastille ou dans la barre de la tuile pour retirer ; flèches dans la barre pour réordonner. |
-| **Barre de tuile** | Au-dessus de chaque vidéo, 24 px : numéro, nom, état (live, hors ligne, pause). Au survol : son, focus, ordre, retrait. Un stream que Twitch a mis en pause affiche **Reprendre**. |
+| **Barre de tuile** | Au-dessus de chaque vidéo, 24 px : numéro, nom (titre du stream en infobulle), état (live, hors ligne, pause), spectateurs. Au survol : son, focus, ordre, retrait. Un stream que Twitch a mis en pause affiche **Reprendre**. |
+| **Spectateurs et pics** | Le nombre de spectateurs de chaque chaîne (Twitch, toutes les 30 s) et sa variation par rapport à la médiane des 15 dernières minutes. Un **pic** (au moins +25 % et +300 spectateurs) passe la barre de la tuile et la pastille en ambre, et un message le signale une fois (10 min de répit par chaîne). L'historique (3 h) est gardé dans le navigateur : la détection repart avec sa référence après un rechargement. |
 | **Focus** | Un stream en grand, les autres en **miniatures sur le côté** (toujours en direct, muettes) : un clic sur une miniature zappe. Les miniatures font au moins 300 px de large (en dessous, Twitch ne les lit pas) : quand une colonne ne suffit pas en hauteur, le bloc passe à 2 ou 3 colonnes. Bloc à droite, à gauche, ou masqué (`S`) ; sur un écran large il absorbe la largeur que le stream principal ne peut pas utiliser. Le focus **coupe le son des autres** et le restaure au retour à la grille. Bloc masqué : les autres lecteurs sont rangés derrière le stream principal ; Twitch les met en pause tant qu'ils y sont, ils repartent quand on zappe dessus. |
 | **Son** | Une pastille ambre (« tally ») marque ce qu'on entend. Son par tuile, ou `M` pour tout couper / remettre. Au premier chargement les lecteurs démarrent muets, le son part au premier clic ou touche (règle d'autoplay des navigateurs). |
 | **Plein écran** | `F` : plein écran navigateur. La barre du haut ne se montre qu'au survol du bord haut et **pousse le mur** vers le bas plutôt que de le recouvrir (épinglable avec `H`). Les messages (chaîne inconnue, cast…) s'affichent dans cette barre, jamais sur le mur. |
@@ -91,6 +92,13 @@ Site statique servi à la racine. Sur Vercel : preset **Vite**, commande `npm ru
 détection automatique suffit, chaque push sur `main` déploie. Pour servir sous un sous-chemin, définir
 `VITE_BASE_PATH` (ex. `/zapette/`) au build.
 
+## Spectateurs : d'où vient le chiffre
+
+L'embed ne l'expose pas et l'API officielle (Helix) exige un jeton OAuth, donc un backend. Zapette interroge
+l'API GraphQL du site twitch.tv (`gql.twitch.tv/gql`, Client-Id public du site, CORS ouvert) : une requête
+pour toutes les chaînes (`users(logins:) { stream { viewersCount title game } }`). Non documentée, elle peut
+changer sans préavis ; en cas d'échec, les compteurs disparaissent au bout de 3 min et tout le reste fonctionne.
+
 ## Pièges Twitch (appris en route)
 
 - Le lecteur observe son iframe avec un IntersectionObserver v2 (`trackVisibility`, délai 1 s). Au démarrage,
@@ -128,10 +136,10 @@ détection automatique suffit, chaque push sur `main` déploie. Pour servir sous
 ```
 src/
 ├── domain/          # Logique pure, testée : layout (grille / focus + bloc de miniatures), parsing de chaîne, état URL,
-│                    # validation d'un snapshot, protocole de cast, modes de colonne
-├── services/        # Chargement de l'embed Twitch, accès à l'API Presentation, localStorage
+│                    # validation d'un snapshot, protocole de cast, modes de colonne, spectateurs (historique, pics)
+├── services/        # Chargement de l'embed Twitch, GraphQL Twitch (spectateurs), API Presentation, localStorage
 ├── stores/          # Pinia : streams (chaînes, son, focus, colonne, chat)
-├── composables/     # wall/ (layout, lecteur Twitch, persistance) · ui/ (barre auto-masquée, raccourcis,
+├── composables/     # wall/ (layout, lecteur Twitch, persistance, spectateurs) · ui/ (barre auto-masquée, raccourcis,
 │                    # aide, toasts) · cast/ (contrôleur PC, récepteur TV)
 ├── components/      # layout/ (barre, pastilles) · wall/ (mur, tuile, chat, états vides)
 │                    # · cast/ · ui/ (boutons, champ, toasts, aide)
