@@ -9,7 +9,7 @@ import {
   type MaybeRefOrGetter,
   type Ref,
 } from 'vue'
-import { useIntervalFn, watchDebounced } from '@vueuse/core'
+import { watchDebounced } from '@vueuse/core'
 import { pickQuality } from '@/domain/quality'
 import { embedParents, loadTwitchEmbed } from '@/services/twitch-embed.service'
 
@@ -18,10 +18,8 @@ export type PlayerStatus = 'loading' | 'live' | 'offline' | 'paused' | 'error'
 export interface UseTwitchPlayerOptions {
   channel: string
   muted: MaybeRefOrGetter<boolean>
-  /** Tuile rangée derrière le stream en focus : Twitch la met en pause (occluse), on n'y touche pas. */
+  /** Tuile rangée derrière le stream en focus (colonne masquée) : le lecteur continue, jamais en pause. */
   hidden: MaybeRefOrGetter<boolean>
-  /** Visible et assez grande pour que Twitch accepte de (re)lancer la lecture. */
-  eligible: MaybeRefOrGetter<boolean>
   /** Largeur affichée, pour adapter la qualité demandée. */
   width: MaybeRefOrGetter<number>
   /**
@@ -32,11 +30,8 @@ export interface UseTwitchPlayerOptions {
 }
 
 const ACTIVATION_EVENTS = ['pointerdown', 'keydown'] as const
-/** Relances après un changement de disposition, puis veille lente : Twitch ne reprend jamais seul. */
+/** Délais des relances quand un lecteur est trouvé en pause après un changement de disposition. */
 const NUDGE_DELAYS_MS = [400, 1500]
-const WATCHDOG_MS = 4000
-/** Laisser sa chance à l'autoplay initial avant la première relance. */
-const READY_GRACE_MS = 2500
 
 /** Le navigateur a-t-il déjà vu un geste utilisateur sur cette page ? */
 function hasUserActivation(): boolean {
@@ -45,20 +40,20 @@ function hasUserActivation(): boolean {
 }
 
 /**
- * Pilote un lecteur Twitch dans `host` : création, son, qualité, statut live/hors ligne, relance.
+ * Pilote un lecteur Twitch dans `host` : création, son, qualité, statut live/hors ligne.
  *
- * Règles apprises en lisant le lecteur (voir README, « Pièges Twitch ») :
- * - créer le lecteur seulement quand la tuile est visible ;
- * - ne rien appeler au READY (ni play(), ni setMuted(false)) : son et qualité au PLAYING ;
- * - Twitch met en pause dès qu'une règle est violée et ne reprend jamais seul → on relance
- *   nous-mêmes, uniquement quand la tuile est éligible (visible, assez grande).
+ * Règles apprises à la dure (Twitch coupe l'autoplay pour de bon si elles sont violées) :
+ * - ne créer le lecteur qu'une fois la tuile réellement visible (jamais dans un élément masqué,
+ *   ni pendant une animation d'opacité) ;
+ * - ne rien appeler au READY (ni play(), ni setMuted(false)) : son et qualité sont appliqués au PLAYING ;
+ * - ne jamais mettre en pause nous-mêmes : une reprise par play() est trop souvent refusée.
  */
 export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitchPlayerOptions) {
   const status = ref<PlayerStatus>('loading')
   /** Le navigateur a refusé la lecture avec son (autoplay) : il faut un clic. */
   const blocked = ref(false)
   const player = shallowRef<Twitch.Player | null>(null)
-  let readyAt = 0
+  let ready = false
   let creating = false
   let disposed = false
   let activationHandler: (() => void) | null = null
@@ -66,7 +61,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
 
   function withPlayer(action: (p: Twitch.Player) => void): void {
     const p = player.value
-    if (!p || !readyAt) return
+    if (!p || !ready) return
     try {
       action(p)
     } catch {
@@ -110,20 +105,18 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       p.setMuted(muted)
     })
 
-  /** Un changement de qualité relance la lecture (donc repasse par les contrôles Twitch) : jamais sur une tuile rangée. */
+  /** Un changement de qualité relance la lecture, donc repasse par le contrôle d'autoplay de Twitch : jamais sur une tuile rangée derrière une autre (occluse). */
   const applyQuality = () =>
     withPlayer((p) => {
-      if (!toValue(options.eligible)) return
+      if (toValue(options.hidden)) return
       const wanted = pickQuality(p.getQualities(), toValue(options.width))
       if (wanted !== p.getQuality()) p.setQuality(wanted)
     })
 
-  /** Relance un lecteur que Twitch a mis en pause, si la tuile remplit à nouveau ses conditions. */
+  /** Un lecteur trouvé en pause après un changement de disposition est relancé (miniatures toujours en direct). */
   const nudge = () =>
     withPlayer((p) => {
-      if (!toValue(options.eligible) || status.value === 'offline') return
-      if (Date.now() - readyAt < READY_GRACE_MS) return
-      if (p.isPaused()) p.play()
+      if (status.value !== 'loading' && p.isPaused()) p.play()
     })
 
   function scheduleNudges(): void {
@@ -149,7 +142,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       height: '100%',
     })
     p.addEventListener(Twitch.Player.READY, () => {
-      readyAt = Date.now()
+      ready = true
     })
     p.addEventListener(Twitch.Player.PLAYING, () => {
       status.value = 'live'
@@ -174,12 +167,16 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
       const registry = ((window as unknown as { __zapettePlayers?: Map<string, Twitch.Player> }).__zapettePlayers ??=
         new Map())
       registry.set(options.channel, p)
+      for (const event of ['ready', 'play', 'playing', 'pause', 'playbackBlocked', 'online', 'offline', 'ended']) {
+        p.addEventListener(event, () => console.debug(`[player:${options.channel}] ${event}`))
+      }
     }
     player.value = p
   }
 
   onMounted(() => {
-    // Création différée : la tuile doit être visible au moment où Twitch évalue ses conditions.
+    // Création différée : la tuile doit être visible (mesurée, non rognée) au moment où Twitch
+    // évalue ses conditions d'autoplay.
     watch(
       () => toValue(options.hidden),
       (hidden) => {
@@ -193,7 +190,7 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
 
   watch(() => toValue(options.muted), applyMuted)
   watch(
-    () => toValue(options.eligible),
+    () => toValue(options.hidden),
     () => {
       applyQuality()
       scheduleNudges()
@@ -208,9 +205,8 @@ export function useTwitchPlayer(host: Ref<HTMLElement | null>, options: UseTwitc
     },
     { debounce: 500 },
   )
-  useIntervalFn(nudge, WATCHDOG_MS)
 
-  /** À appeler depuis un clic : lève le blocage d'autoplay sonore et redonne le son. */
+  /** À appeler depuis un clic : lève le blocage d'autoplay et redonne le son. */
   function unblock(): void {
     withPlayer((p) => {
       p.setMuted(false)

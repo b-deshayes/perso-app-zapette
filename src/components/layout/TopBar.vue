@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useFullscreen } from '@vueuse/core'
 import {
   Keyboard,
@@ -10,24 +10,23 @@ import {
   Minimize,
   PanelLeft,
   PanelRight,
+  Pin,
+  PinOff,
 } from 'lucide-vue-next'
 import CastControl from '@/components/cast/CastControl.vue'
 import ChannelChip from '@/components/layout/ChannelChip.vue'
 import ChannelInput from '@/components/ui/forms/ChannelInput.vue'
 import IconButton from '@/components/ui/forms/IconButton.vue'
-import { useBarVisibility } from '@/composables/ui/useBarVisibility'
+import { useAutoHideBar } from '@/composables/ui/useAutoHideBar'
 import { useHelpOverlay } from '@/composables/ui/useHelpOverlay'
 import { useToast } from '@/composables/ui/useToast'
-import { useWallWarnings } from '@/composables/wall/useWallLayout'
 import { MAX_CHANNELS } from '@/domain/channel'
-import { MIN_PLAYER_H, MIN_PLAYER_W } from '@/domain/layout'
 import { useStreamsStore, type AddResult } from '@/stores/streams'
 import type { StripMode } from '@/types/Stream'
 
 const store = useStreamsStore()
-const { visible, show } = useBarVisibility()
+const { visible, pinned, onEnter, onLeave, onFocusIn, onFocusOut, reveal, togglePin } = useAutoHideBar()
 const { visible: helpVisible, toggle: toggleHelp } = useHelpOverlay()
-const { undersized } = useWallWarnings()
 const toast = useToast()
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(document.documentElement)
 const input = ref<InstanceType<typeof ChannelInput> | null>(null)
@@ -45,12 +44,6 @@ const STRIP_LABELS: Record<StripMode, string> = {
 }
 const stripIcon = computed(() => (store.strip === 'left' ? PanelLeft : PanelRight))
 
-const countTitle = computed(() =>
-  undersized.value
-    ? `Trop de chaînes pour la fenêtre : Twitch ne lance pas un lecteur plus petit que ${MIN_PLAYER_W}×${MIN_PLAYER_H} px. Retire des chaînes, agrandis la fenêtre ou passe en focus.`
-    : `${store.count} chaîne(s) sur ${MAX_CHANNELS}`,
-)
-
 function onSubmit(raw: string) {
   const result = store.add(raw)
   if (result === 'added') input.value?.clear()
@@ -66,9 +59,8 @@ function toggleMode() {
   if (target) store.focus(target)
 }
 
-async function focusInput() {
-  show()
-  await nextTick()
+function focusInput() {
+  reveal()
   input.value?.focus()
 }
 
@@ -76,73 +68,133 @@ defineExpose({ focusInput })
 </script>
 
 <template>
-  <!-- Dans le flux, jamais par-dessus le mur : un élément qui recouvre un lecteur Twitch le met en pause. -->
-  <header v-show="visible" class="bar">
-    <div class="brand" aria-label="Zapette">
-      <span class="brand__mark" aria-hidden="true">Z</span>
-      <span class="brand__name wordmark">Zapette</span>
+  <header
+    class="topzone"
+    :class="{ 'is-visible': visible, 'is-pinned': pinned }"
+    @mouseenter="onEnter"
+    @mouseleave="onLeave"
+    @focusin="onFocusIn"
+    @focusout="onFocusOut"
+  >
+    <div class="bar">
+      <div class="brand" aria-label="Zapette">
+        <span class="brand__mark" aria-hidden="true">Z</span>
+        <span class="brand__name wordmark">Zapette</span>
+      </div>
+
+      <ChannelInput ref="input" class="bar__input" @submit="onSubmit" />
+
+      <div class="chips" role="list">
+        <ChannelChip v-for="(channel, index) in store.channels" :key="channel.name" :channel="channel" :index="index" />
+      </div>
+
+      <span class="bar__count" :title="`${store.count} chaîne(s) sur ${MAX_CHANNELS}`">
+        {{ store.count }}<span class="bar__count-max">/{{ MAX_CHANNELS }}</span>
+      </span>
+
+      <div class="bar__group">
+        <IconButton
+          :icon="store.focused ? LayoutGrid : Maximize2"
+          :label="store.focused ? 'Revenir à la grille' : 'Focus sur un stream'"
+          :kbd="store.focused ? 'Échap' : '1-9'"
+          :disabled="store.count === 0"
+          @press="toggleMode"
+        />
+        <IconButton
+          :icon="stripIcon"
+          :label="STRIP_LABELS[store.strip]"
+          kbd="S"
+          :active="store.strip !== 'off' && store.focused !== null"
+          :disabled="!store.focused"
+          @press="store.cycleStrip"
+        />
+        <IconButton
+          :icon="MessageSquare"
+          label="Chat Twitch"
+          kbd="C"
+          :active="store.chat"
+          :disabled="store.count === 0"
+          @press="store.toggleChat"
+        />
+      </div>
+
+      <div class="bar__group">
+        <CastControl />
+        <IconButton
+          :icon="isFullscreen ? Minimize : Maximize"
+          label="Plein écran navigateur"
+          kbd="F"
+          :active="isFullscreen"
+          @press="toggleFullscreen"
+        />
+        <IconButton :icon="pinned ? PinOff : Pin" label="Épingler la barre" kbd="H" :active="pinned" @press="togglePin" />
+        <IconButton :icon="Keyboard" label="Raccourcis et aide" kbd="?" :active="helpVisible" @press="toggleHelp" />
+      </div>
     </div>
-
-    <ChannelInput ref="input" class="bar__input" @submit="onSubmit" />
-
-    <div class="chips" role="list">
-      <ChannelChip v-for="(channel, index) in store.channels" :key="channel.name" :channel="channel" :index="index" />
-    </div>
-
-    <span class="bar__count" :class="{ 'is-warn': undersized }" :title="countTitle">
-      {{ store.count }}<span class="bar__count-max">/{{ MAX_CHANNELS }}</span>
-    </span>
-
-    <div class="bar__group">
-      <IconButton
-        :icon="store.focused ? LayoutGrid : Maximize2"
-        :label="store.focused ? 'Revenir à la grille' : 'Focus sur un stream'"
-        :kbd="store.focused ? 'Échap' : '1-9'"
-        :disabled="store.count === 0"
-        @press="toggleMode"
-      />
-      <IconButton
-        :icon="stripIcon"
-        :label="STRIP_LABELS[store.strip]"
-        kbd="S"
-        :active="store.strip !== 'off' && store.focused !== null"
-        :disabled="!store.focused"
-        @press="store.cycleStrip"
-      />
-      <IconButton
-        :icon="MessageSquare"
-        label="Chat Twitch"
-        kbd="C"
-        :active="store.chat"
-        :disabled="store.count === 0"
-        @press="store.toggleChat"
-      />
-    </div>
-
-    <div class="bar__group">
-      <CastControl />
-      <IconButton
-        :icon="isFullscreen ? Minimize : Maximize"
-        label="Plein écran navigateur"
-        kbd="F"
-        :active="isFullscreen"
-        @press="toggleFullscreen"
-      />
-      <IconButton :icon="Keyboard" label="Raccourcis et aide (H masque cette barre)" kbd="?" :active="helpVisible" @press="toggleHelp" />
-    </div>
+    <div class="topzone__handle" aria-hidden="true" />
   </header>
 </template>
 
 <style scoped>
+/*
+ * Masquée, la zone reste survolable mais à opacité 0 : un élément qui chevauche un lecteur Twitch
+ * (même transparent) lui fait refuser l'autoplay, sauf s'il est à opacité 0. Épinglée, la barre
+ * prend sa place dans le flux au-dessus du mur au lieu de le recouvrir.
+ */
+.topzone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding-bottom: 14px;
+  opacity: 0;
+  transform: translateY(calc(-100% + 14px));
+  transition:
+    transform 0.28s var(--ease-panel),
+    opacity 0.2s;
+}
+
+.topzone.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.topzone.is-pinned {
+  position: relative;
+  padding-bottom: 0;
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+.topzone__handle {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 64px;
+  height: 3px;
+  margin-left: -32px;
+  border-radius: 2px;
+  background: var(--color-tally-500);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.topzone.is-pinned .topzone__handle {
+  display: none;
+}
+
 .bar {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 0 auto;
-  height: 40px;
-  padding: 0 10px;
-  background: var(--color-ink-900);
+  height: 46px;
+  padding: 0 12px;
+  background: color-mix(in srgb, var(--color-ink-900) 90%, transparent);
   border-bottom: 1px solid var(--color-ink-700);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
 }
 
 .brand {
@@ -156,25 +208,24 @@ defineExpose({ focusInput })
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   background: var(--color-ink-50);
   color: var(--color-ink-950);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1;
 }
 
 .brand__name {
-  font-size: 18px;
+  font-size: 19px;
   color: var(--color-ink-50);
 }
 
 .bar__input {
-  width: 280px;
+  width: 300px;
   flex: 0 0 auto;
-  height: 30px;
 }
 
 .chips {
@@ -200,18 +251,8 @@ defineExpose({ focusInput })
   color: var(--color-ink-200);
 }
 
-.bar__count.is-warn {
-  padding: 0 6px;
-  background: var(--color-tally-500);
-  color: var(--color-ink-950);
-}
-
 .bar__count-max {
   color: var(--color-ink-400);
-}
-
-.bar__count.is-warn .bar__count-max {
-  color: var(--color-ink-800);
 }
 
 .bar__group {
@@ -231,7 +272,7 @@ defineExpose({ focusInput })
   }
 
   .bar__input {
-    width: 190px;
+    width: 200px;
   }
 }
 </style>

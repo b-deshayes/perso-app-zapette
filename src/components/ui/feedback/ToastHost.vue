@@ -22,23 +22,23 @@ const { toasts, dismiss } = useToast()
 </template>
 
 <style scoped>
-/* En haut à droite, sur la barre : un toast posé sur une vidéo mettrait le lecteur Twitch en pause. */
 .toasts {
   position: fixed;
-  top: 5px;
-  right: 12px;
+  left: 50%;
+  bottom: 18px;
   z-index: 60;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 6px;
+  translate: -50% 0;
   pointer-events: none;
 }
 
 .toast {
   pointer-events: auto;
-  max-width: min(70vw, 560px);
-  padding: 6px 12px;
+  max-width: min(90vw, 560px);
+  padding: 8px 14px;
   border: 1px solid var(--color-ink-600);
   background: color-mix(in srgb, var(--color-ink-900) 92%, transparent);
   color: var(--color-ink-50);

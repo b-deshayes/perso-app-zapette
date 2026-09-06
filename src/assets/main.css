@@ -141,18 +141,6 @@
     height: 14px;
   }
 
-  .ibtn--xs {
-    width: 18px;
-    height: 18px;
-    border-color: transparent;
-    background: transparent;
-  }
-
-  .ibtn--xs .ibtn__icon {
-    width: 12px;
-    height: 12px;
-  }
-
   /* ---------- Touche clavier ---------- */
   .kbd {
     display: inline-block;

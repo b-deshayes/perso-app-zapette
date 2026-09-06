@@ -2,7 +2,6 @@
 import { X } from 'lucide-vue-next'
 import IconButton from '@/components/ui/forms/IconButton.vue'
 import { useHelpOverlay } from '@/composables/ui/useHelpOverlay'
-import { MIN_PLAYER_H, MIN_PLAYER_W } from '@/domain/layout'
 
 const { visible, close } = useHelpOverlay()
 
@@ -16,7 +15,7 @@ const SHORTCUTS: Array<[string, string]> = [
   ['C', 'Chat Twitch du stream en focus'],
   ['A ou /', 'Ajouter une chaîne'],
   ['Suppr', 'Retirer le stream en focus'],
-  ['H', 'Masquer / afficher la barre du haut'],
+  ['H', 'Épingler la barre du haut'],
   ['?', 'Cette aide'],
 ]
 </script>
@@ -52,17 +51,15 @@ const SHORTCUTS: Array<[string, string]> = [
               </li>
               <li>
                 Sinon, dans Chrome : menu <span class="kbd">⋮</span> → <strong>Caster…</strong> → source
-                « Onglet ». Passe en plein écran (<span class="kbd">F</span>) et masque la barre
-                (<span class="kbd">H</span>) avant.
+                « Onglet ». Passe en plein écran (<span class="kbd">F</span>) avant, la barre se cache toute seule.
               </li>
             </ol>
 
-            <h2 class="label-cond help__h">Règles Twitch</h2>
+            <h2 class="label-cond help__h">Souris</h2>
             <p class="help__p">
-              Le lecteur Twitch ne démarre pas, et se met en pause, si quelque chose recouvre la vidéo ou si elle fait
-              moins de {{ MIN_PLAYER_W }}×{{ MIN_PLAYER_H }} px. D'où les contrôles sous chaque vidéo, les miniatures
-              live à cette taille en mode focus et des cartes « en attente » pour les autres : un clic dessus zappe.
-              Le compteur passe en ambre quand la grille est trop serrée pour la fenêtre.
+              La barre apparaît en approchant du bord haut. Survole une tuile pour le son, le focus, l'ordre et le
+              retrait. En focus, les autres streams s'empilent dans une colonne sur le côté : un clic sur une
+              miniature zappe dessus.
             </p>
 
             <h2 class="label-cond help__h">Partager</h2>
